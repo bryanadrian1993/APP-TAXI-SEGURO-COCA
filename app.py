@@ -98,7 +98,7 @@ if boton_registro:
                 
                 msg_encoded = urllib.parse.quote(mensaje_texto)
                 # EL BOTÓN SIEMPRE ENVÍA AL CONDUCTOR
-                link_final = f"https://wa.me/593982443582?text={msg_encoded}"
+                link_final = f"https://wa.me/593962384356?text={msg_encoded}"
                 
                 st.success("✅ ¡Datos guardados correctamente!")
                 st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
