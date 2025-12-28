@@ -8,17 +8,16 @@ from datetime import datetime
 import urllib.parse
 import math
 
-# --- 1. CONFIGURACIÓN BÁSICA ---
-st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚖", layout="centered")
+# --- CONFIGURACIÓN ---
+st.set_page_config(page_title="TAXI SEGURO - DIAGNOSTICO", page_icon="🔧", layout="centered")
 
-# 📍 COORDENADAS BASE
+# TUS DATOS FIJOS
 LAT_TAXI_BASE = -0.466657
 LON_TAXI_BASE = -76.989635
-
-# 📂 ID DE TU CARPETA (Confirmado)
 ID_CARPETA_DRIVE = "1spyEiLT-HhKl_fFnfkbMcrzI3_4Kr3dI"
+NUMERO_TAXISTA = "593962384356"
 
-# --- 2. ESTILOS VISUALES ---
+# --- ESTILOS ---
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #000; }
@@ -28,88 +27,69 @@ st.markdown("""
         display: block; text-decoration: none; font-weight: bold;
         font-size: 20px; margin-top: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
     }
-    .precio-box {
-        background-color: #FFF9C4; padding: 20px; border-radius: 10px;
-        border: 2px solid #FBC02D; text-align: center; margin-bottom: 20px;
-    }
-    .precio-titulo { font-size: 18px; color: #555; }
-    .precio-valor { font-size: 32px; font-weight: bold; color: #000; }
-    .datos-banco {
-        background-color: #F3F3F3; padding: 15px; border-radius: 10px;
-        border-left: 5px solid #1E88E5; font-size: 14px; margin-bottom: 15px;
-    }
-    .exito-msg {
-        background-color: #E8F5E9; color: #1B5E20; padding: 20px;
-        border-radius: 10px; text-align: center; font-weight: bold; font-size: 18px;
-    }
+    .info-box { background-color: #E3F2FD; padding: 10px; border-radius: 5px; border: 1px solid #2196F3; margin-bottom: 10px; font-size: 12px;}
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNCIONES DE CONEXIÓN (NUEVO MOTOR "GOOGLE-AUTH") ---
+# --- FUNCIONES CON DIAGNÓSTICO ---
 
 def obtener_credenciales():
-    """Genera las credenciales usando la librería moderna"""
-    scope = [
-        "https://www.googleapis.com/auth/spreadsheets",
-        "https://www.googleapis.com/auth/drive"
-    ]
-    # Convierte los secrets de Streamlit a un diccionario normal
+    scope = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds_dict = dict(st.secrets["gcp_service_account"])
-    
-    # IMPORTANTE: Arregla los saltos de línea en la clave privada si vienen mal
     if "private_key" in creds_dict:
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+    return Credentials.from_service_account_info(creds_dict, scopes=scope)
 
-    # Crea las credenciales
-    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
-    return creds
-
-def conectar_sheets():
+def subir_imagen_drive_con_logs(archivo_obj, nombre_cliente):
+    st.info("🔵 1. Iniciando proceso de subida...")
     try:
         creds = obtener_credenciales()
-        client = gspread.authorize(creds)
-        # Asegúrate de que el nombre coincida con tu hoja real
-        return client.open("BD_TAXI_PRUEBAS").get_worksheet(0)
-    except Exception as e:
-        return None
+        email_robot = creds.service_account_email
+        st.info(f"🔵 2. Robot conectado como: {email_robot}")
+        st.info(f"🔵 3. Verificando carpeta ID: {ID_CARPETA_DRIVE}")
 
-def subir_imagen_drive(archivo_obj, nombre_cliente):
-    """Sube imagen a Drive y la hace pública para el link"""
-    try:
-        creds = obtener_credenciales()
         service = build('drive', 'v3', credentials=creds)
         
         timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
         nombre_archivo = f"{timestamp}_{nombre_cliente}_Pago.jpg"
         
-        file_metadata = {
-            'name': nombre_archivo,
-            'parents': [ID_CARPETA_DRIVE]
-        }
-        
+        file_metadata = {'name': nombre_archivo, 'parents': [ID_CARPETA_DRIVE]}
         media = MediaIoBaseUpload(archivo_obj, mimetype=archivo_obj.type)
         
-        # 1. Subir archivo
+        st.info("🔵 4. Enviando archivo a Google...")
         file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, webViewLink'
+            body=file_metadata, media_body=media, fields='id, webViewLink'
         ).execute()
         
-        # 2. Dar permiso público (para que el link funcione)
+        file_id = file.get('id')
+        st.success(f"✅ 5. Archivo creado con ID: {file_id}")
+        
+        st.info("🔵 6. Configurando permiso público...")
         service.permissions().create(
-            fileId=file.get('id'),
-            body={'type': 'anyone', 'role': 'reader'},
+            fileId=file_id, body={'type': 'anyone', 'role': 'reader'}
         ).execute()
         
-        return file.get('webViewLink')
+        link = file.get('webViewLink')
+        st.success(f"✅ LISTO. Link generado: {link}")
+        return link
         
     except Exception as e:
-        # ESTO ES IMPORTANTE: Te mostrará el error real en pantalla roja
-        st.error(f"⚠️ ERROR DE SUBIDA: {e}")
+        st.error(f"❌ ERROR FATAL EN SUBIDA: {str(e)}")
+        # Diagnóstico común
+        if "404" in str(e):
+            st.warning("⚠️ PISTA: Error 404 suele significar que el Robot NO encuentra la carpeta. ¿Seguro que compartiste la carpeta con el correo del paso 2?")
+        if "403" in str(e):
+            st.warning("⚠️ PISTA: Error 403 es falta de permisos. El robot existe pero no tiene permiso de 'Editor'.")
         return None
 
-# --- 4. FUNCIONES DE CÁLCULO ---
+def conectar_sheets():
+    try:
+        creds = obtener_credenciales()
+        client = gspread.authorize(creds)
+        return client.open("BD_TAXI_PRUEBAS").get_worksheet(0)
+    except Exception as e:
+        st.error(f"Error Sheets: {e}")
+        return None
 
 def calcular_distancia_km(lat1, lon1, lat2, lon2):
     R = 6371
@@ -119,148 +99,61 @@ def calcular_distancia_km(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
+# --- INTERFAZ ---
 if 'paso' not in st.session_state: st.session_state.paso = 1
 if 'datos_pedido' not in st.session_state: st.session_state.datos_pedido = {}
 
-# --- 5. INTERFAZ DE USUARIO ---
-st.markdown("<h1 style='text-align:center;'>🚖 TAXI SEGURO</h1>", unsafe_allow_html=True)
-st.markdown("<h3 style='text-align:center;'>📍 COCA</h3>", unsafe_allow_html=True)
-st.write("---")
+st.markdown("<h1 style='text-align:center;'>🚖 MODO DIAGNÓSTICO</h1>", unsafe_allow_html=True)
 
-# === PASO 1: GPS Y FORMULARIO ===
+# PASO 1
 if st.session_state.paso == 1:
-    st.write("🛰️ **PASO 1: ACTIVAR UBICACIÓN**")
+    st.write("🛰️ **PASO 1**")
     loc = get_geolocation()
-    lat, lon = LAT_TAXI_BASE, LON_TAXI_BASE
-    distancia = 0.0
-    gps_activo = False
-    mapa_link = "No detectado"
-
     if loc:
         lat = loc['coords']['latitude']
         lon = loc['coords']['longitude']
-        mapa_link = f"https://www.google.com/maps?q={lat},{lon}"
         distancia = calcular_distancia_km(LAT_TAXI_BASE, LON_TAXI_BASE, lat, lon)
-        gps_activo = True
-        st.success("✅ GPS ACTIVADO")
-    else:
-        st.warning("⚠️ Esperando señal GPS...")
-
-    with st.form("form_inicial"):
-        st.write("📝 **PASO 2: DATOS DEL VIAJE**")
-        nombre = st.text_input("Nombre del cliente:")
-        celular = st.text_input("Número de WhatsApp:")
-        referencia = st.text_input("Referencia exacta:")
-        tipo = st.selectbox("Tipo de unidad:", ["Taxi 🚖", "Camioneta 🛻", "Moto 📦"])
+        st.success("GPS OK")
         
-        if st.form_submit_button("REGISTRAR PEDIDO"):
-            if not nombre or not celular or not referencia:
-                st.error("❌ Llena todos los campos.")
-            elif not gps_activo:
-                st.error("⚠️ Activa tu GPS.")
-            else:
-                costo = round(distancia * 0.75, 2)
-                if costo < 1.50: costo = 1.50
+        with st.form("f1"):
+            nombre = st.text_input("Nombre:")
+            celular = st.text_input("Celular:")
+            tipo = st.selectbox("Unidad:", ["Taxi 🚖"])
+            if st.form_submit_button("REGISTRAR"):
                 st.session_state.datos_pedido = {
-                    "nombre": nombre, "celular": celular, "referencia": referencia,
-                    "tipo": tipo, "mapa": mapa_link, "distancia": distancia, "costo": costo
+                    "nombre": nombre, "celular": celular, "tipo": tipo,
+                    "distancia": distancia, "costo": 1.50, "referencia": "Prueba", "mapa": "Test"
                 }
-                st.session_state.paso = 2
+                st.session_state.paso = 3 # Saltamos directo al pago para probar rápido
                 st.rerun()
+    else:
+        st.warning("Activa GPS")
 
-# === PASO 2: CONFIRMAR PRECIO ===
-elif st.session_state.paso == 2:
-    d = st.session_state.datos_pedido
-    st.write("💰 **CONFIRMACIÓN DE TARIFA**")
-    st.markdown(f"""
-    <div class="precio-box">
-        <div class="precio-titulo">Costo estimado</div>
-        <div class="precio-valor">${d['costo']}</div>
-        <small>{round(d['distancia'], 2)} km</small>
-    </div>""", unsafe_allow_html=True)
-
-    c1, c2 = st.columns(2)
-    if c1.button("✅ ACEPTAR", use_container_width=True):
-        st.session_state.paso = 3
-        st.rerun()
-    if c2.button("❌ CANCELAR", use_container_width=True):
-        st.session_state.paso = 1
-        st.rerun()
-
-# === PASO 3: PAGO (CON SUBIDA A DRIVE) ===
+# PASO 3 (DIRECTO A PRUEBA DE PAGO)
 elif st.session_state.paso == 3:
-    st.write("💳 **MÉTODO DE PAGO**")
-    pago = st.radio("Elige:", ("Efectivo", "Transferencia Bancaria", "Código QR DEUNA"))
+    st.write("🧪 **PRUEBA DE SUBIDA**")
+    archivo = st.file_uploader("Sube una foto cualquiera para probar", type=["jpg", "png", "jpeg"])
     
-    archivo_subido = None
-    if pago == "Transferencia Bancaria":
-        st.markdown("""
-        <div class="datos-banco">
-            <b>🏦 DATOS BANCARIOS:</b><br>
-            <b>Banco:</b> PICHINCHA (Ahorros)<br>
-            <b>Nº:</b> 2202072013<br>
-            <b>Titular:</b> BRYAN ADRIAN CAMPOVERDE JARAMILLO<br>
-            <b>CI:</b> 2200377071<br>
-            <b>Email:</b> adrian-verdi@outlook.es
-        </div>""", unsafe_allow_html=True)
-        st.write("📸 **Sube tu comprobante (Foto/Captura):**")
-        archivo_subido = st.file_uploader("Cargar imagen", type=["jpg", "png", "jpeg"])
+    if st.button("PROBAR SUBIDA"):
+        if archivo:
+            link = subir_imagen_drive_con_logs(archivo, st.session_state.datos_pedido['nombre'])
+            if link:
+                st.session_state.datos_pedido['link_comprobante'] = link
+                st.session_state.datos_pedido['pago'] = "Transferencia"
+                st.session_state.paso = 4
+                st.rerun()
+        else:
+            st.error("Sube un archivo primero.")
 
-    if st.button("FINALIZAR VIAJE", use_container_width=True):
-        st.session_state.datos_pedido['pago'] = pago
-        st.session_state.datos_pedido['link_comprobante'] = ""
-        
-        if archivo_subido:
-            # Mostramos un spinner para saber que está trabajando
-            with st.spinner("Subiendo comprobante a la nube..."):
-                link = subir_imagen_drive(archivo_subido, st.session_state.datos_pedido['nombre'])
-                if link:
-                    st.session_state.datos_pedido['link_comprobante'] = link
-                    st.success("✅ ¡Imagen subida correctamente!")
-                else:
-                    st.warning("⚠️ No se pudo subir la imagen, pero el pedido se registrará igual.")
-        
-        st.session_state.paso = 4
-        st.rerun()
-
-# === PASO 4: FIN Y WHATSAPP ===
+# PASO 4
 elif st.session_state.paso == 4:
     d = st.session_state.datos_pedido
-    tiempo = math.ceil((d['distancia'] * 2.5) + 3)
+    st.success("¡Llegamos al final!")
     
-    hoja = conectar_sheets()
-    if hoja:
-        try:
-            fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-            estado = f"PENDIENTE - {d['pago']} - ${d['costo']}"
-            if d['link_comprobante']: estado += " (Con Comprobante)"
-            
-            fila = [fecha, d['nombre'], d['celular'], d['tipo'], d['referencia'], d['mapa'], estado, d['link_comprobante']]
-            hoja.append_row(fila)
-        except Exception as e:
-            st.error(f"Error guardando en Sheets: {e}")
-
-    st.markdown(f"""
-    <div class="exito-msg">
-        ✅ PETICIÓN PROCESADA<br>LLEGAREMOS EN {tiempo} MINUTOS APROX.
-    </div>""", unsafe_allow_html=True)
+    msg = f"PRUEBA EXITOSA.\nLink: {d.get('link_comprobante', 'NO HAY LINK')}"
+    link_wa = f"https://wa.me/{NUMERO_TAXISTA}?text={urllib.parse.quote(msg)}"
+    st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">ENVIAR WHATSAPP</a>', unsafe_allow_html=True)
     
-    mensaje = (
-        f"🚖 *PEDIDO CONFIRMADO*\n"
-        f"👤 {d['nombre']} | 📱 {d['celular']}\n"
-        f"💵 Costo: ${d['costo']} ({d['pago']})\n"
-        f"🚖 Unidad: {d['tipo']}\n"
-        f"🏠 Ref: {d['referencia']}\n"
-        f"📍 Mapa: {d['mapa']}"
-    )
-    
-    if d['link_comprobante']:
-        mensaje += f"\n\n📎 *VER COMPROBANTE DE PAGO:*\n{d['link_comprobante']}"
-
-    link_wa = f"https://wa.me/593962384356?text={urllib.parse.quote(mensaje)}"
-    st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR AL TAXISTA</a>', unsafe_allow_html=True)
-    
-    st.write("")
-    if st.button("🔄 Nuevo Pedido"):
+    if st.button("Reiniciar"):
         st.session_state.paso = 1
         st.rerun()
