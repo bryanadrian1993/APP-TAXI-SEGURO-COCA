@@ -6,7 +6,7 @@ from datetime import datetime
 import urllib.parse 
 
 # 1. CONFIGURACIÓN BÁSICA
-st.set_page_config(page_title="APP TAXI SEGURO - COCA", page_icon="🚕", layout="centered")
+st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚕", layout="centered")
 
 # 2. ESTILOS VISUALES (IDÉNTICOS AL ORIGINAL)
 st.markdown("""
@@ -29,84 +29,78 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 3. FUNCIÓN GOOGLE SHEETS (CORREGIDA PARA BD_TAXI_PRUEBAS)
+# 3. FUNCIÓN GOOGLE SHEETS
 def conectar_sheets():
     try:
         scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        # Extraer credenciales de los secrets de Streamlit
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        # CAMBIO: Conecta a la hoja de PRUEBAS
+        # Conecta a tu nueva hoja de pruebas
         return gspread.authorize(creds).open("BD_TAXI_PRUEBAS").get_worksheet(0)
-    except Exception as e:
-        # st.error(f"Error técnico: {e}") # Descomentar solo para ver errores de conexión
+    except: 
         return None
 
 # 4. INTERFAZ PRINCIPAL
 st.markdown("<h1 style='text-align:center;'>🚕 TAXI SEGURO</h1>", unsafe_allow_html=True)
 st.markdown("<h3 style='text-align:center;'>📍 COCA</h3>", unsafe_allow_html=True)
 
-# SECCIÓN DE DETECCIÓN DE GPS
 st.write("---")
 st.write("🛰️ **PASO 1: ACTIVAR UBICACIÓN**")
 
-# Intentamos obtener la ubicación
 loc = get_geolocation()
 
 if loc:
     st.markdown('<div class="exito-gps">✅ GPS ACTIVADO: Podemos ver tu ubicación real.</div>', unsafe_allow_html=True)
     lat = loc['coords']['latitude']
     lon = loc['coords']['longitude']
-    mapa_link = f"https://www.google.com/maps/search/?api=1&query={lat},{lon}"
+    mapa_link = f"https://www.google.com/maps?q={lat},{lon}"
 else:
     st.markdown("""
         <div class="alerta-gps">
             <b>⚠️ ATENCIÓN: GPS BLOQUEADO</b><br>
-            Tu celular no nos permite ver tu ubicación. Sigue estos pasos:<br>
-            1. Toca el <b>CANDADO 🔒</b> arriba junto a la dirección web.<br>
-            2. Activa el interruptor de <b>UBICACIÓN</b>.<br>
-            3. Recarga esta página.
+            Tu celular no nos permite ver tu ubicación.
         </div>
     """, unsafe_allow_html=True)
-    mapa_link = "UBICACIÓN MANUAL (GPS Falló)"
+    mapa_link = "UBICACIÓN MANUAL"
 
 # 5. FORMULARIO DE PEDIDO
 with st.form("pedido_taxi"):
     st.write("🛰️ **PASO 2: DATOS DEL VIAJE**")
     nombre = st.text_input("Nombre del cliente:")
-    celular = st.text_input("Número de WhatsApp:")
-    referencia = st.text_input("Dirección/Referencia exacta (Ej: Casa verde frente al parque):")
+    celular_cliente = st.text_input("Número de WhatsApp:")
+    referencia = st.text_input("Dirección/Referencia exacta:")
     tipo = st.selectbox("Tipo de unidad:", ["Taxi 🚕", "Camioneta 🛻", "Moto 📦"])
     
     boton_registro = st.form_submit_button("REGISTRAR PEDIDO")
 
 if boton_registro:
-    if not nombre or not celular:
+    if not nombre or not celular_cliente:
         st.error("❌ Por favor llena tu nombre y celular.")
     else:
-        # Guardar en Sheets
         hoja = conectar_sheets()
         if hoja:
             try:
                 fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-                hoja.append_row([fecha, nombre, celular, tipo, referencia, mapa_link, "PENDIENTE"])
-            except: 
-                st.error("No se pudo escribir en la hoja. Verifica el permiso del correo de servicio.")
-
-        # MENSAJE DE WHATSAPP PARA EL TAXISTA
-        mensaje_texto = (
-            f"🚕 *PEDIDO DE UNIDAD*\n"
-            f"👤 *Cliente:* {nombre}\n"
-            f"📱 *WhatsApp:* {celular}\n"
-            f"🚕 *Servicio:* {tipo}\n"
-            f"🏠 *Referencia:* {referencia}\n\n"
-            f"📍 *UBICACIÓN:* {mapa_link}"
-        )
-        
-        msg_encoded = urllib.parse.quote(mensaje_texto)
-        # Se mantiene el número original de tu código
-        link_final = f"https://wa.me/593962384356?text={msg_encoded}"
-        
-        st.success("✅ ¡Datos guardados!")
-        st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
+                # REGISTRO EN LA HOJA (Acomodado a tus títulos: Fecha, Nombre, Telefono...)
+                datos = [fecha, nombre, celular_cliente, "Pedido App", referencia, mapa_link, "PENDIENTE"]
+                hoja.append_row(datos)
+                
+                # MENSAJE PARA EL CONDUCTOR
+                mensaje_texto = (
+                    f"🚕 *PEDIDO DE UNIDAD*\n"
+                    f"👤 *Cliente:* {nombre}\n"
+                    f"📱 *WhatsApp:* {celular_cliente}\n"
+                    f"🚕 *Servicio:* {tipo}\n"
+                    f"🏠 *Referencia:* {referencia}\n\n"
+                    f"📍 *UBICACIÓN:* {mapa_link}"
+                )
+                
+                msg_encoded = urllib.parse.quote(mensaje_texto)
+                # EL BOTÓN SIEMPRE ENVÍA AL CONDUCTOR
+                link_final = f"https://wa.me/593982443582?text={msg_encoded}"
+                
+                st.success("✅ ¡Datos guardados correctamente!")
+                st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Error al guardar: {e}")
