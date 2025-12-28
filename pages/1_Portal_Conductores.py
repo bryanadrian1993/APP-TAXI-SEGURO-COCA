@@ -12,12 +12,13 @@ EMAIL_ADMIN = "taxi-seguroecuador@hotmail.com"
 st.image("https://cdn-icons-png.flaticon.com/512/2083/2083260.png", width=100)
 st.title("📝 REGISTRO DE SOCIOS")
 
-def registrar_chofer(nombre, apellido, cedula, email, telefono, placa, clave):
+def registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave):
     try:
         params = {
             "accion": "registro",
             "nombre": nombre, "apellido": apellido,
             "cedula": cedula, "email": email,
+            "direccion": direccion, # Enviamos la dirección
             "telefono": telefono, "placa": placa, "clave": clave
         }
         query_string = urllib.parse.urlencode(params)
@@ -34,7 +35,10 @@ with st.form("form_registro"):
     c1, c2 = st.columns(2)
     nombre = c1.text_input("Nombres:")
     apellido = c2.text_input("Apellidos:")
-    cedula = st.text_input("Cédula / Identificación:")
+    cedula = st.text_input("Cédula de Identidad:")
+    
+    st.write("🏠 **Domicilio**")
+    direccion = st.text_input("Dirección Domiciliaria Completa:")
     
     st.write("📧 **Contacto**")
     email = st.text_input("Tu Correo Electrónico:")
@@ -52,13 +56,13 @@ with st.form("form_registro"):
     enviar = st.form_submit_button("🚀 GUARDAR Y CONTINUAR")
 
 if enviar:
-    if not nombre or not email or not clave or not placa:
-        st.error("❌ Faltan datos obligatorios.")
+    if not nombre or not email or not clave or not placa or not direccion:
+        st.error("❌ Faltan datos obligatorios (incluida la dirección).")
     elif not acepto:
         st.warning("⚠️ Debes aceptar los términos.")
     else:
         with st.spinner("Guardando registro..."):
-            resultado = registrar_chofer(nombre, apellido, cedula, email, telefono, placa, clave)
+            resultado = registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave)
             
             if "REGISTRO_OK" in resultado:
                 st.success("✅ ¡DATOS GUARDADOS!")
@@ -69,26 +73,33 @@ if enviar:
                 cuerpo = f"""Hola Admin,
 Soy {nombre} {apellido}.
 Cédula: {cedula}
+Dirección: {direccion}
 Placa: {placa}
 
-ADJUNTO FOTOS (Licencia, Auto, Matrícula).
+ADJUNTO MIS 5 REQUISITOS (Fotos).
 """
-                # 1. ENLACE ESTÁNDAR (Para celulares y Outlook) - SIN TARGET BLANK
                 link_email = f"mailto:{EMAIL_ADMIN}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
-                
-                # 2. ENLACE GMAIL WEB (Para computadoras)
                 link_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={EMAIL_ADMIN}&su={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
                 
+                # --- LISTA DE DOCUMENTOS ACTUALIZADA ---
                 st.markdown("""
-                <div style='background-color:#E3F2FD; padding:20px; border-radius:10px; border:1px solid #BBDEFB; text-align:center;'>
-                    <h3 style='color:#0D47A1;'>📨 ÚLTIMO PASO: ENVIAR FOTOS</h3>
-                    <p>Elige una opción para adjuntar tus fotos:</p>
+                <div style='background-color:#E3F2FD; padding:20px; border-radius:10px; border:1px solid #BBDEFB;'>
+                    <h3 style='color:#0D47A1; text-align:center;'>📨 ÚLTIMO PASO: ENVIAR REQUISITOS</h3>
+                    <p style='text-align:center;'><b>Debes adjuntar OBLIGATORIAMENTE estas 5 fotos:</b></p>
+                    <ul style='color:#0D47A1; font-weight:bold;'>
+                        <li>1. Foto de Perfil (Rostro) 👤</li>
+                        <li>2. Foto del Vehículo 🚖</li>
+                        <li>3. Foto de la Cédula de Identidad 🆔</li>
+                        <li>4. Foto de la Matrícula del Vehículo 📄</li>
+                        <li>5. Foto de la Licencia de Conducir 💳</li>
+                    </ul>
+                    <hr>
+                    <p style='text-align:center;'>Elige una opción para enviar:</p>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
                 
-                # Botón 1: App de Correo (Celulares)
                 c1.markdown(f"""
                 <a href="{link_email}" style="
                     background-color:#0277BD; color:white; padding:15px; 
@@ -98,7 +109,6 @@ ADJUNTO FOTOS (Licencia, Auto, Matrícula).
                 </a>
                 """, unsafe_allow_html=True)
 
-                # Botón 2: Gmail Web (Computadoras)
                 c2.markdown(f"""
                 <a href="{link_gmail}" target="_blank" style="
                     background-color:#DB4437; color:white; padding:15px; 
@@ -107,8 +117,6 @@ ADJUNTO FOTOS (Licencia, Auto, Matrícula).
                     📧 USAR GMAIL WEB
                 </a>
                 """, unsafe_allow_html=True)
-                
-                st.info(f"Si nada funciona, envía las fotos manualmente a: **{EMAIL_ADMIN}**")
                 
             else:
                 st.error(f"Error al registrar: {resultado}")
