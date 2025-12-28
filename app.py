@@ -1,6 +1,6 @@
 import streamlit as st
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
+from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 from streamlit_js_eval import get_geolocation
@@ -11,11 +11,11 @@ import math
 # --- 1. CONFIGURACIÓN BÁSICA ---
 st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚖", layout="centered")
 
-# 📍 COORDENADAS BASE (Centro del Coca)
+# 📍 COORDENADAS BASE
 LAT_TAXI_BASE = -0.466657
 LON_TAXI_BASE = -76.989635
 
-# 📂 ID DE TU CARPETA GOOGLE DRIVE (Ya configurado)
+# 📂 ID DE TU CARPETA GOOGLE DRIVE (La de tus capturas)
 ID_CARPETA_DRIVE = "1spyEiLT-HhKl_fFnfkbMcrzI3_4Kr3dI"
 
 # --- 2. ESTILOS VISUALES ---
@@ -45,7 +45,66 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# --- 3. FUNCIONES DE CÁLCULO Y CONEXIÓN ---
+# --- 3. FUNCIONES DE CONEXIÓN (NUEVO MOTOR "GOOGLE-AUTH") ---
+
+def obtener_credenciales():
+    """Genera las credenciales usando la librería moderna"""
+    scope = [
+        "https://www.googleapis.com/auth/spreadsheets",
+        "https://www.googleapis.com/auth/drive"
+    ]
+    # Convierte los secrets de Streamlit a un diccionario normal
+    creds_dict = dict(st.secrets["gcp_service_account"])
+    
+    # Crea las credenciales
+    creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
+    return creds
+
+def conectar_sheets():
+    try:
+        creds = obtener_credenciales()
+        client = gspread.authorize(creds)
+        # Asegúrate de que el nombre coincida con tu hoja real
+        return client.open("BD_TAXI_PRUEBAS").get_worksheet(0)
+    except Exception as e:
+        return None
+
+def subir_imagen_drive(archivo_obj, nombre_cliente):
+    """Sube imagen a Drive y la hace pública para el link"""
+    try:
+        creds = obtener_credenciales()
+        service = build('drive', 'v3', credentials=creds)
+        
+        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
+        nombre_archivo = f"{timestamp}_{nombre_cliente}_Pago.jpg"
+        
+        file_metadata = {
+            'name': nombre_archivo,
+            'parents': [ID_CARPETA_DRIVE]
+        }
+        
+        media = MediaIoBaseUpload(archivo_obj, mimetype=archivo_obj.type)
+        
+        # 1. Subir archivo
+        file = service.files().create(
+            body=file_metadata,
+            media_body=media,
+            fields='id, webViewLink'
+        ).execute()
+        
+        # 2. Dar permiso público (para que el link funcione)
+        service.permissions().create(
+            fileId=file.get('id'),
+            body={'type': 'anyone', 'role': 'reader'},
+        ).execute()
+        
+        return file.get('webViewLink')
+        
+    except Exception as e:
+        st.error(f"⚠️ Error técnico subiendo imagen: {e}")
+        return None
+
+# --- 4. FUNCIONES DE CÁLCULO ---
 
 def calcular_distancia_km(lat1, lon1, lat2, lon2):
     R = 6371
@@ -55,63 +114,6 @@ def calcular_distancia_km(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-def obtener_credenciales():
-    scope = [
-        "https://spreadsheets.google.com/feeds", 
-        "https://www.googleapis.com/auth/drive"
-    ]
-    creds_dict = dict(st.secrets["gcp_service_account"])
-    creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
-    return ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-
-def conectar_sheets():
-    try:
-        creds = obtener_credenciales()
-        # Conecta a la hoja de PRUEBAS (Recuerda cambiar esto si pasas a la oficial)
-        return gspread.authorize(creds).open("BD_TAXI_PRUEBAS").get_worksheet(0)
-    except: return None
-
-def subir_imagen_drive(archivo_obj, nombre_cliente):
-    """Sube la imagen a Drive y devuelve el link público"""
-    try:
-        creds = obtener_credenciales()
-        service = build('drive', 'v3', credentials=creds)
-        
-        # Nombre ordenado por fecha: AAAA-MM-DD_HH-MM_Cliente.jpg
-        timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M")
-        nombre_archivo = f"{timestamp}_{nombre_cliente}_Pago.jpg"
-        
-        file_metadata = {
-            'name': nombre_archivo,
-            'parents': [ID_CARPETA_DRIVE] 
-        }
-        
-        media = MediaIoBaseUpload(archivo_obj, mimetype=archivo_obj.type)
-        
-        # Subir archivo
-        file = service.files().create(
-            body=file_metadata,
-            media_body=media,
-            fields='id, webViewLink'
-        ).execute()
-        
-        file_id = file.get('id')
-        
-        # Dar permiso público para que el taxista pueda ver la foto con el link
-        user_permission = {'type': 'anyone', 'role': 'reader'}
-        service.permissions().create(
-            fileId=file_id,
-            body=user_permission,
-            fields='id',
-        ).execute()
-        
-        return file.get('webViewLink')
-        
-    except Exception as e:
-        st.error(f"Error subiendo imagen: {e}")
-        return None
-
-# --- 4. GESTIÓN DE ESTADOS ---
 if 'paso' not in st.session_state: st.session_state.paso = 1
 if 'datos_pedido' not in st.session_state: st.session_state.datos_pedido = {}
 
@@ -124,7 +126,6 @@ st.write("---")
 if st.session_state.paso == 1:
     st.write("🛰️ **PASO 1: ACTIVAR UBICACIÓN**")
     loc = get_geolocation()
-    
     lat, lon = LAT_TAXI_BASE, LON_TAXI_BASE
     distancia = 0.0
     gps_activo = False
@@ -151,11 +152,10 @@ if st.session_state.paso == 1:
             if not nombre or not celular or not referencia:
                 st.error("❌ Llena todos los campos.")
             elif not gps_activo:
-                st.error("⚠️ Activa tu GPS para calcular la tarifa.")
+                st.error("⚠️ Activa tu GPS.")
             else:
                 costo = round(distancia * 0.75, 2)
                 if costo < 1.50: costo = 1.50
-                
                 st.session_state.datos_pedido = {
                     "nombre": nombre, "celular": celular, "referencia": referencia,
                     "tipo": tipo, "mapa": mapa_link, "distancia": distancia, "costo": costo
@@ -205,14 +205,13 @@ elif st.session_state.paso == 3:
         st.session_state.datos_pedido['pago'] = pago
         st.session_state.datos_pedido['link_comprobante'] = ""
         
-        # Si subió archivo, lo enviamos a Drive
         if archivo_subido:
-            with st.spinner("Subiendo comprobante a la nube... (Esto puede tardar unos segundos)"):
-                link_drive = subir_imagen_drive(archivo_subido, st.session_state.datos_pedido['nombre'])
-                if link_drive:
-                    st.session_state.datos_pedido['link_comprobante'] = link_drive
+            with st.spinner("Subiendo comprobante a la nube..."):
+                link = subir_imagen_drive(archivo_subido, st.session_state.datos_pedido['nombre'])
+                if link:
+                    st.session_state.datos_pedido['link_comprobante'] = link
                 else:
-                    st.warning("No se pudo subir la imagen, pero se registrará el pedido.")
+                    st.warning("⚠️ No se pudo subir la imagen, pero el pedido se registrará igual.")
         
         st.session_state.paso = 4
         st.rerun()
@@ -222,15 +221,13 @@ elif st.session_state.paso == 4:
     d = st.session_state.datos_pedido
     tiempo = math.ceil((d['distancia'] * 2.5) + 3)
     
-    # Guardar en Sheets
     hoja = conectar_sheets()
     if hoja:
         try:
             fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
             estado = f"PENDIENTE - {d['pago']} - ${d['costo']}"
-            if d['link_comprobante']: 
-                estado += " (Con Comprobante)"
-            # Guardamos todo, incluyendo el link en la última columna
+            if d['link_comprobante']: estado += " (Con Comprobante)"
+            # Guardamos todo (Asegurate que tu sheet tenga columnas suficientes o estará en la H, I...)
             fila = [fecha, d['nombre'], d['celular'], d['tipo'], d['referencia'], d['mapa'], estado, d['link_comprobante']]
             hoja.append_row(fila)
         except: pass
@@ -240,7 +237,6 @@ elif st.session_state.paso == 4:
         ✅ PETICIÓN PROCESADA<br>LLEGAREMOS EN {tiempo} MINUTOS APROX.
     </div>""", unsafe_allow_html=True)
     
-    # Mensaje WhatsApp
     mensaje = (
         f"🚖 *PEDIDO CONFIRMADO*\n"
         f"👤 {d['nombre']} | 📱 {d['celular']}\n"
@@ -250,11 +246,10 @@ elif st.session_state.paso == 4:
         f"📍 Mapa: {d['mapa']}"
     )
     
-    # Agregar el link de Drive si existe
     if d['link_comprobante']:
         mensaje += f"\n\n📎 *VER COMPROBANTE DE PAGO:*\n{d['link_comprobante']}"
 
-    link_wa = f"https://wa.me/593962384356?text={urllib.parse.quote(mensaje)}"
+    link_wa = f"https://wa.me/593982443582?text={urllib.parse.quote(mensaje)}"
     st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR AL TAXISTA</a>', unsafe_allow_html=True)
     
     st.write("")
