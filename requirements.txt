@@ -1,8 +1,4 @@
 streamlit
-gspread
 pandas
-google-auth
-google-api-python-client
-oauth2client
-streamlit_js_eval
 st-gsheets-connection
+streamlit-js-eval
