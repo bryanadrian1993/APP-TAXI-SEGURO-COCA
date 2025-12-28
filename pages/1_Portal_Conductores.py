@@ -4,7 +4,7 @@ import urllib.request
 import urllib.parse
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Registro Conductores", layout="wide") # Cambiado a wide para que entren los botones arriba
+st.set_page_config(page_title="Registro Conductores", layout="wide")
 
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwI2zteeExU_Zy2yHLMR3A49ZYSHwP_xNGsTy-AuRiD_6llZA6V_QxvvOYiXD48w2uc/exec"
 EMAIL_ADMIN = "taxi-seguroecuador@hotmail.com"
@@ -19,7 +19,6 @@ with col_login:
     if 'conectado' not in st.session_state:
         st.session_state.conectado = False
     
-    # Botón que abre/cierra el panel de acceso
     if st.button("🔐 ACCESO SOCIOS (Libre/Ocupado)", use_container_width=True):
         st.session_state.ver_login = not st.session_state.get('ver_login', False)
 
@@ -31,7 +30,7 @@ if st.session_state.get('ver_login', False):
             u_nom = c1.text_input("Nombre:")
             u_cla = c2.text_input("Contraseña:", type="password")
             if st.button("INGRESAR"):
-                if u_nom and u_cla: # Aquí validará con tus datos registrados
+                if u_nom and u_cla:
                     st.session_state.conectado = True
                     st.session_state.usuario = u_nom
                     st.rerun()
@@ -43,7 +42,6 @@ if st.session_state.get('ver_login', False):
             if b2.button("🔴 ESTOY OCUPADO", use_container_width=True):
                 st.session_state.mi_estado = "OCUPADO"
             
-            # Indicador visual del estado
             est = st.session_state.get('mi_estado', 'SIN DEFINIR')
             color = "#28a745" if est == "LIBRE" else "#dc3545"
             st.markdown(f"<div style='background-color:{color}; color:white; padding:10px; border-radius:10px; text-align:center;'><h3>ESTADO: {est}</h3></div>", unsafe_allow_html=True)
@@ -65,13 +63,12 @@ def registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa
         }
         query_string = urllib.parse.urlencode(params)
         url_final = f"{URL_SCRIPT}?{query_string}"
-        
         with urllib.request.urlopen(url_final) as response:
             return response.read().decode('utf-8')
     except Exception as e:
         return f"Error: {e}"
 
-# --- FORMULARIO ORIGINAL ---
+# --- FORMULARIO ORIGINAL (Se mantiene) ---
 with st.form("form_registro"):
     st.write("👤 **Datos Personales**")
     c1, c2 = st.columns(2)
@@ -94,19 +91,17 @@ with st.form("form_registro"):
     clave = st.text_input("Contraseña:", type="password")
     
     acepto = st.checkbox("Declaro que mis documentos están vigentes.")
-    
     enviar = st.form_submit_button("🚀 GUARDAR Y CONTINUAR")
 
-# --- LÓGICA DE ENVÍO Y REQUISITOS (ORIGINAL) ---
+# --- LÓGICA DE ENVÍO (Se mantiene) ---
 if enviar:
     if not nombre or not email or not clave or not placa or not direccion:
-        st.error("❌ Faltan datos obligatorios (incluida la dirección).")
+        st.error("❌ Faltan datos obligatorios.")
     elif not acepto:
         st.warning("⚠️ Debes aceptar los términos.")
     else:
         with st.spinner("Guardando registro..."):
             resultado = registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave)
-            
             if "REGISTRO_OK" in resultado:
                 st.success("✅ ¡DATOS GUARDADOS!")
                 st.balloons()
@@ -119,28 +114,11 @@ if enviar:
                 st.markdown("""
                 <div style='background-color:#E3F2FD; padding:20px; border-radius:10px; border:1px solid #BBDEFB;'>
                     <h3 style='color:#0D47A1; text-align:center;'>📨 ÚLTIMO PASO: ENVIAR REQUISITOS</h3>
-                    <p style='text-align:center;'><b>Debes adjuntar OBLIGATORIAMENTE estas 5 fotos:</b></p>
-                    <ul style='color:#0D47A1; font-weight:bold;'>
-                        <li>1. Foto de Perfil 👤</li><li>2. Foto del Vehículo 🚖</li><li>3. Foto de la Cédula 🆔</li><li>4. Foto de Matrícula 📄</li><li>5. Foto de Licencia 💳</li>
-                    </ul>
                 </div>
                 """, unsafe_allow_html=True)
                 
                 c1, c2 = st.columns(2)
-                c1.markdown(f'<a href="{link_email}" style="background-color:#0277BD; color:white; padding:15px; display:block; text-align:center; text-decoration:none; border-radius:10px; font-weight:bold;">📱 DESDE EL CELULAR</a>', unsafe_allow_html=True)
-                c2.markdown(f'<a href="{link_gmail}" target="_blank" style="background-color:#DB4437; color:white; padding:15px; display:block; text-align:center; text-decoration:none; border-radius:10px; font-weight:bold;">💻 DESDE COMPUTADORA</a>', unsafe_allow_html=True)
+                c1.markdown(f'<a href="{link_email}" style="background-color:#0277BD; color:white; padding:15px; display:block; text-align:center; text-decoration:none; border-radius:10px; font-weight:bold;">📱 CELULAR</a>', unsafe_allow_html=True)
+                c2.markdown(f'<a href="{link_gmail}" target="_blank" style="background-color:#DB4437; color:white; padding:15px; display:block; text-align:center; text-decoration:none; border-radius:10px; font-weight:bold;">💻 COMPUTADORA</a>', unsafe_allow_html=True)
             else:
-                st.error(f"Error al registrar: {resultado}")
-
-# --- TABLA DE REGISTRO AL FINAL ---
-st.divider()
-st.subheader("📋 REGISTRO DE SOCIOS")
-datos_socios = {
-    "NOMBRES Y APELLIDOS": ["BRYAN ADRIAN", "SOCIO 2", "SOCIO 3"],
-    "CÉDULA": ["1234567890", "0987654321", "1122334455"],
-    "TELÉFONO": ["0987654321", "0999999999", "0888888888"],
-    "PLACA": ["ABC-1234", "XYZ-9876", "PB-5555"],
-    "ESTADO": ["ACTIVO", "ACTIVO", "ACTIVO"]
-}
-df = pd.DataFrame(datos_socios)
-st.dataframe(df, use_container_width=True)
+                st.error(f"Error: {resultado}")
