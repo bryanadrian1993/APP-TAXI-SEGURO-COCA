@@ -254,7 +254,7 @@ elif st.session_state.paso == 4:
     if d['link_comprobante']:
         mensaje += f"\n\n📎 *VER COMPROBANTE DE PAGO:*\n{d['link_comprobante']}"
 
-    link_wa = f"https://wa.me/593982443582?text={urllib.parse.quote(mensaje)}"
+    link_wa = f"https://wa.me/593962384356?text={urllib.parse.quote(mensaje)}"
     st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR AL TAXISTA</a>', unsafe_allow_html=True)
     
     st.write("")
