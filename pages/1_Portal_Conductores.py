@@ -98,30 +98,34 @@ ADJUNTO MIS 5 REQUISITOS (Fotos).
                 </div>
                 """, unsafe_allow_html=True)
                 
-                # --- BOTONES ---
+                # --- BOTONES CLAROS ---
                 c1, c2 = st.columns(2)
                 
+                # Botón Azul (Celular)
                 c1.markdown(f"""
                 <a href="{link_email}" style="
                     background-color:#0277BD; color:white; padding:15px; 
                     display:block; text-align:center; text-decoration:none; 
                     border-radius:10px; font-weight:bold;">
-                    📱 APP DE CORREO
+                    📱 DESDE EL CELULAR
                 </a>
+                <p style="text-align:center; font-size:12px; color:gray;">(Usa la App de Correo)</p>
                 """, unsafe_allow_html=True)
 
+                # Botón Rojo (PC)
                 c2.markdown(f"""
                 <a href="{link_gmail}" target="_blank" style="
                     background-color:#DB4437; color:white; padding:15px; 
                     display:block; text-align:center; text-decoration:none; 
                     border-radius:10px; font-weight:bold;">
-                    📧 USAR GMAIL WEB
+                    💻 DESDE COMPUTADORA
                 </a>
+                <p style="text-align:center; font-size:12px; color:gray;">(Abre Gmail Web)</p>
                 """, unsafe_allow_html=True)
 
-                # --- 👇 MENSAJE DE RESPALDO (NUEVO) ---
-                st.write("") # Espacio
-                st.info(f"⚠️ **¿Problemas con enviar los documentos?**\nSi no se abren las opciones anteriores, envía tus 5 fotos manualmente al correo: **{EMAIL_ADMIN}**")
+                # --- MENSAJE DE RESPALDO ---
+                st.write("") 
+                st.warning(f"⚠️ **¿Problemas con los botones?**\nSi ninguna opción funciona, envía tus 5 fotos manualmente a nuestro correo: **{EMAIL_ADMIN}**")
                 
             else:
                 st.error(f"Error al registrar: {resultado}")
