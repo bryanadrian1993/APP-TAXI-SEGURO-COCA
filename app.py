@@ -119,7 +119,7 @@ if modo == "🚖 PEDIR TAXI":
                 link_wa = f"https://wa.me/{dest_numero}?text={urllib.parse.quote(msg)}"
                 
                 st.balloons()
-                st.markdown(f'<div class="precio-box">Estimado: ${costo}</div>', unsafe_allow_html=True)
+                st.markdown(f'<div class="precio-box">Total: ${costo}</div>', unsafe_allow_html=True)
                 st.info(mensaje_usuario)
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
 
