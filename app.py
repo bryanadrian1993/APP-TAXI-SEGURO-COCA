@@ -8,7 +8,7 @@ import urllib.parse
 # 1. CONFIGURACIÓN BÁSICA
 st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚕", layout="centered")
 
-# 2. ESTILOS VISUALES (IDÉNTICOS AL ORIGINAL)
+# 2. ESTILOS VISUALES
 st.markdown("""
     <style>
     .stApp { background-color: #ffffff; color: #000; }
@@ -36,7 +36,6 @@ def conectar_sheets():
         creds_dict = dict(st.secrets["gcp_service_account"])
         creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
         creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
-        # Conecta a tu nueva hoja de pruebas
         return gspread.authorize(creds).open("BD_TAXI_PRUEBAS").get_worksheet(0)
     except: 
         return None
@@ -70,6 +69,7 @@ with st.form("pedido_taxi"):
     nombre = st.text_input("Nombre del cliente:")
     celular_cliente = st.text_input("Número de WhatsApp:")
     referencia = st.text_input("Dirección/Referencia exacta:")
+    # El usuario elige aquí el tipo
     tipo = st.selectbox("Tipo de unidad:", ["Taxi 🚕", "Camioneta 🛻", "Moto 📦"])
     
     boton_registro = st.form_submit_button("REGISTRAR PEDIDO")
@@ -82,8 +82,10 @@ if boton_registro:
         if hoja:
             try:
                 fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
-                # REGISTRO EN LA HOJA (Acomodado a tus títulos: Fecha, Nombre, Telefono...)
-                datos = [fecha, nombre, celular_cliente, "Pedido App", referencia, mapa_link, "PENDIENTE"]
+                
+                # CAMBIO AQUÍ: En la columna D ahora guardamos la variable 'tipo' en lugar de "PEDIDO APP"
+                datos = [fecha, nombre, celular_cliente, tipo, referencia, mapa_link, "PENDIENTE"]
+                
                 hoja.append_row(datos)
                 
                 # MENSAJE PARA EL CONDUCTOR
@@ -97,8 +99,7 @@ if boton_registro:
                 )
                 
                 msg_encoded = urllib.parse.quote(mensaje_texto)
-                # EL BOTÓN SIEMPRE ENVÍA AL CONDUCTOR
-                link_final = f"https://wa.me/593962384356?text={msg_encoded}"
+                link_final = f"https://wa.me/593982443582?text={msg_encoded}"
                 
                 st.success("✅ ¡Datos guardados correctamente!")
                 st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
