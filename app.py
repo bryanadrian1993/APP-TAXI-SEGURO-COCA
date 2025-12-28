@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
 from streamlit_js_eval import get_geolocation
 from datetime import datetime
 import urllib.parse
@@ -9,19 +8,25 @@ import math
 # --- 1. CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🔗 ENLACE DIRECTO (Esta es la clave para que no falle)
-URL_HOJA = "https://docs.google.com/spreadsheets/d/1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus/edit"
+# 🆔 ID DE TU HOJA (ESTO ES LO ÚNICO QUE NECESITAMOS)
+SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 
-# 📍 DATOS
+# 📍 VARIABLES
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 NUMERO_ADMIN = "593962384356"
 PASSWORD_ADMIN = "admin123"
 
-# --- 2. CONEXIÓN ---
-conn = st.connection("gsheets", type=GSheetsConnection)
+# --- 2. FUNCIÓN DE CONEXIÓN INFALIBLE (SIN SECRETS) ---
+def cargar_datos(hoja):
+    try:
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={hoja}"
+        return pd.read_csv(url)
+    except Exception as e:
+        st.error(f"Error cargando {hoja}: {e}")
+        return pd.DataFrame()
 
-# --- 3. FUNCIONES Y ESTILOS ---
+# --- 3. FUNCIONES AUXILIARES ---
 def calcular_distancia(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -42,11 +47,11 @@ if 'paso' not in st.session_state: st.session_state.paso = 1
 if 'datos_pedido' not in st.session_state: st.session_state.datos_pedido = {}
 
 # ==============================================================================
-# MENÚ
+# MENÚ LATERAL
 # ==============================================================================
 modo = st.sidebar.selectbox("Modo de Uso:", ["🚖 PEDIR TAXI (Cliente)", "👮‍♂️ ADMINISTRACIÓN (Dueño)"])
 
-# === CLIENTE ===
+# === MODO CLIENTE ===
 if modo == "🚖 PEDIR TAXI (Cliente)":
     st.title("🚖 PEDIR TAXI")
     
@@ -83,25 +88,33 @@ if modo == "🚖 PEDIR TAXI (Cliente)":
     elif st.session_state.paso == 2:
         d = st.session_state.datos_pedido
         st.markdown(f'<div class="precio-box"><h2>${d["costo"]}</h2></div>', unsafe_allow_html=True)
+        
         if st.button("✅ CONFIRMAR Y PEDIR"):
-            # INTENTO DE GUARDAR (Ignora si falla, prioriza WhatsApp)
-            try: conn.read(spreadsheet=URL_HOJA, worksheet="VIAJES", ttl=0)
-            except: pass
-            
+            # AQUÍ YA NO INTENTAMOS CONECTAR A SHEETS PARA EVITAR ERROR
+            # SE ENVÍA DIRECTO POR WHATSAPP
             msg = f"🚖 *NUEVO PEDIDO*\n👤 {d['nombre']}\n📍 {d['ref']}\n💰 ${d['costo']}\n🗺️ {d['mapa']}"
             link = f"https://wa.me/{NUMERO_ADMIN}?text={urllib.parse.quote(msg)}"
+            
+            st.balloons()
             st.markdown(f'<a href="{link}" class="wa-btn" target="_blank">📲 ENVIAR POR WHATSAPP</a>', unsafe_allow_html=True)
-            if st.button("🔄 Inicio"): st.session_state.paso = 1; st.rerun()
+            
+            if st.button("🔄 Nuevo Pedido"):
+                st.session_state.paso = 1
+                st.rerun()
 
-# === ADMIN ===
+# === MODO ADMIN ===
 elif modo == "👮‍♂️ ADMINISTRACIÓN (Dueño)":
     st.header("👮‍♂️ Panel Dueño")
-    if st.text_input("Password:", type="password") == PASSWORD_ADMIN:
-        try:
-            # AQUÍ USAMOS EL ENLACE DIRECTO
-            df_v = conn.read(spreadsheet=URL_HOJA, worksheet="VIAJES", ttl=0)
-            df_c = conn.read(spreadsheet=URL_HOJA, worksheet="CHOFERES", ttl=0)
-            st.dataframe(df_v.tail(5))
-            st.dataframe(df_c)
-        except Exception as e:
-            st.error(f"Error: {e}")
+    pwd = st.text_input("Password:", type="password")
+    
+    if pwd == PASSWORD_ADMIN:
+        st.success("Acceso Correcto")
+        # Leemos directo del CSV público
+        df_choferes = cargar_datos("CHOFERES")
+        df_viajes = cargar_datos("VIAJES")
+        
+        st.subheader("Choferes")
+        st.dataframe(df_choferes)
+        
+        st.subheader("Viajes")
+        st.dataframe(df_viajes)
