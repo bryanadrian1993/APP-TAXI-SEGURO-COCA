@@ -15,7 +15,7 @@ st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚖", layout="ce
 LAT_TAXI_BASE = -0.466657
 LON_TAXI_BASE = -76.989635
 
-# 📂 ID DE TU CARPETA GOOGLE DRIVE (La de tus capturas)
+# 📂 ID DE TU CARPETA (Confirmado)
 ID_CARPETA_DRIVE = "1spyEiLT-HhKl_fFnfkbMcrzI3_4Kr3dI"
 
 # --- 2. ESTILOS VISUALES ---
@@ -56,6 +56,10 @@ def obtener_credenciales():
     # Convierte los secrets de Streamlit a un diccionario normal
     creds_dict = dict(st.secrets["gcp_service_account"])
     
+    # IMPORTANTE: Arregla los saltos de línea en la clave privada si vienen mal
+    if "private_key" in creds_dict:
+        creds_dict["private_key"] = creds_dict["private_key"].replace("\\n", "\n")
+
     # Crea las credenciales
     creds = Credentials.from_service_account_info(creds_dict, scopes=scope)
     return creds
@@ -101,7 +105,8 @@ def subir_imagen_drive(archivo_obj, nombre_cliente):
         return file.get('webViewLink')
         
     except Exception as e:
-        st.error(f"⚠️ Error técnico subiendo imagen: {e}")
+        # ESTO ES IMPORTANTE: Te mostrará el error real en pantalla roja
+        st.error(f"⚠️ ERROR DE SUBIDA: {e}")
         return None
 
 # --- 4. FUNCIONES DE CÁLCULO ---
@@ -206,10 +211,12 @@ elif st.session_state.paso == 3:
         st.session_state.datos_pedido['link_comprobante'] = ""
         
         if archivo_subido:
+            # Mostramos un spinner para saber que está trabajando
             with st.spinner("Subiendo comprobante a la nube..."):
                 link = subir_imagen_drive(archivo_subido, st.session_state.datos_pedido['nombre'])
                 if link:
                     st.session_state.datos_pedido['link_comprobante'] = link
+                    st.success("✅ ¡Imagen subida correctamente!")
                 else:
                     st.warning("⚠️ No se pudo subir la imagen, pero el pedido se registrará igual.")
         
@@ -227,10 +234,11 @@ elif st.session_state.paso == 4:
             fecha = datetime.now().strftime("%d/%m/%Y %H:%M")
             estado = f"PENDIENTE - {d['pago']} - ${d['costo']}"
             if d['link_comprobante']: estado += " (Con Comprobante)"
-            # Guardamos todo (Asegurate que tu sheet tenga columnas suficientes o estará en la H, I...)
+            
             fila = [fecha, d['nombre'], d['celular'], d['tipo'], d['referencia'], d['mapa'], estado, d['link_comprobante']]
             hoja.append_row(fila)
-        except: pass
+        except Exception as e:
+            st.error(f"Error guardando en Sheets: {e}")
 
     st.markdown(f"""
     <div class="exito-msg">
