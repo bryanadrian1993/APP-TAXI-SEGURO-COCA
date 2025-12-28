@@ -1,131 +1,75 @@
 import streamlit as st
-import pandas as pd
-import urllib.request
-import urllib.parse
 
-st.set_page_config(page_title="Registro Conductores", layout="centered")
+# Configuración de la pestaña
+st.set_page_config(page_title="Portal Conductores", page_icon="🚖")
 
-# --- CONFIGURACIÓN ---
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwI2zteeExU_Zy2yHLMR3A49ZYSHwP_xNGsTy-AuRiD_6llZA6V_QxvvOYiXD48w2uc/exec"
-EMAIL_ADMIN = "taxi-seguroecuador@hotmail.com"
+# Título con estilo
+st.markdown("<h1 style='text-align: center;'>🔐 ACCESO DE CONDUCTORES</h1>", unsafe_allow_html=True)
+st.divider()
 
-st.image("https://cdn-icons-png.flaticon.com/512/2083/2083260.png", width=100)
-st.title("📝 REGISTRO DE SOCIOS")
+# --- INICIALIZACIÓN DE VARIABLES DE SESIÓN ---
+if 'autenticado' not in st.session_state:
+    st.session_state.autenticado = False
+if 'nombre_usuario' not in st.session_state:
+    st.session_state.nombre_usuario = ""
+if 'estado_actual' not in st.session_state:
+    st.session_state.estado_actual = "DESCONECTADO"
 
-def registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave):
-    try:
-        params = {
-            "accion": "registro",
-            "nombre": nombre, "apellido": apellido,
-            "cedula": cedula, "email": email,
-            "direccion": direccion,
-            "telefono": telefono, "placa": placa, "clave": clave
-        }
-        query_string = urllib.parse.urlencode(params)
-        url_final = f"{URL_SCRIPT}?{query_string}"
+# --- FORMULARIO DE INGRESO ---
+if not st.session_state.autenticado:
+    with st.container(border=True):
+        st.subheader("Identifíquese para trabajar")
+        nombre = st.text_input("👤 Nombre del Conductor (como se registró):")
+        clave = st.text_input("🔑 Clave de Acceso:", type="password")
         
-        with urllib.request.urlopen(url_final) as response:
-            return response.read().decode('utf-8')
-    except Exception as e:
-        return f"Error: {e}"
-
-# --- FORMULARIO ---
-with st.form("form_registro"):
-    st.write("👤 **Datos Personales**")
-    c1, c2 = st.columns(2)
-    nombre = c1.text_input("Nombres:")
-    apellido = c2.text_input("Apellidos:")
-    cedula = st.text_input("Cédula de Identidad:")
-    
-    st.write("🏠 **Domicilio**")
-    direccion = st.text_input("Dirección Domiciliaria Completa:")
-    
-    st.write("📧 **Contacto**")
-    email = st.text_input("Tu Correo Electrónico:")
-    telefono = st.text_input("Celular (ej: 593...):")
-    
-    st.write("🚖 **Datos del Vehículo**")
-    placa = st.text_input("Placa del Vehículo:")
-    
-    st.write("🔐 **Seguridad**")
-    st.info("Crea tu contraseña para entrar:")
-    clave = st.text_input("Contraseña:", type="password")
-    
-    acepto = st.checkbox("Declaro que mis documentos están vigentes.")
-    
-    enviar = st.form_submit_button("🚀 GUARDAR Y CONTINUAR")
-
-if enviar:
-    if not nombre or not email or not clave or not placa or not direccion:
-        st.error("❌ Faltan datos obligatorios (incluida la dirección).")
-    elif not acepto:
-        st.warning("⚠️ Debes aceptar los términos.")
-    else:
-        with st.spinner("Guardando registro..."):
-            resultado = registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave)
-            
-            if "REGISTRO_OK" in resultado:
-                st.success("✅ ¡DATOS GUARDADOS!")
-                st.balloons()
-                
-                # --- PREPARAR CORREOS ---
-                asunto = f"ALTA NUEVO SOCIO - {nombre} {apellido}"
-                cuerpo = f"""Hola Admin,
-Soy {nombre} {apellido}.
-Cédula: {cedula}
-Dirección: {direccion}
-Placa: {placa}
-
-ADJUNTO MIS 5 REQUISITOS (Fotos).
-"""
-                link_email = f"mailto:{EMAIL_ADMIN}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
-                link_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={EMAIL_ADMIN}&su={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
-                
-                # --- CAJA AZUL DE REQUISITOS ---
-                st.markdown("""
-                <div style='background-color:#E3F2FD; padding:20px; border-radius:10px; border:1px solid #BBDEFB;'>
-                    <h3 style='color:#0D47A1; text-align:center;'>📨 ÚLTIMO PASO: ENVIAR REQUISITOS</h3>
-                    <p style='text-align:center;'><b>Debes adjuntar OBLIGATORIAMENTE estas 5 fotos:</b></p>
-                    <ul style='color:#0D47A1; font-weight:bold;'>
-                        <li>1. Foto de Perfil (Rostro) 👤</li>
-                        <li>2. Foto del Vehículo 🚖</li>
-                        <li>3. Foto de la Cédula de Identidad 🆔</li>
-                        <li>4. Foto de la Matrícula del Vehículo 📄</li>
-                        <li>5. Foto de la Licencia de Conducir 💳</li>
-                    </ul>
-                    <hr>
-                    <p style='text-align:center;'>Elige una opción para enviar:</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                # --- BOTONES CLAROS ---
-                c1, c2 = st.columns(2)
-                
-                # Botón Azul (Celular)
-                c1.markdown(f"""
-                <a href="{link_email}" style="
-                    background-color:#0277BD; color:white; padding:15px; 
-                    display:block; text-align:center; text-decoration:none; 
-                    border-radius:10px; font-weight:bold;">
-                    📱 DESDE EL CELULAR
-                </a>
-                <p style="text-align:center; font-size:12px; color:gray;">(Usa la App de Correo)</p>
-                """, unsafe_allow_html=True)
-
-                # Botón Rojo (PC)
-                c2.markdown(f"""
-                <a href="{link_gmail}" target="_blank" style="
-                    background-color:#DB4437; color:white; padding:15px; 
-                    display:block; text-align:center; text-decoration:none; 
-                    border-radius:10px; font-weight:bold;">
-                    💻 DESDE COMPUTADORA
-                </a>
-                <p style="text-align:center; font-size:12px; color:gray;">(Abre Gmail Web)</p>
-                """, unsafe_allow_html=True)
-
-                # --- MENSAJE DE RESPALDO ---
-                st.write("") 
-                st.warning(f"⚠️ **¿Problemas con los botones?**\nSi ninguna opción funciona, envía tus 5 fotos manualmente a nuestro correo: **{EMAIL_ADMIN}**")
-                
+        if st.button("INGRESAR AL PORTAL", use_container_width=True):
+            if nombre and clave:
+                # Aquí validamos el ingreso
+                st.session_state.autenticado = True
+                st.session_state.nombre_usuario = nombre
+                st.rerun()
             else:
-                st.error(f"Error al registrar: {resultado}")
+                st.error("❌ Por favor ingrese su Nombre y Clave")
+
+# --- PANEL DE CONTROL DEL CONDUCTOR ---
+else:
+    st.success(f"✅ Conectado como: **{st.session_state.nombre_usuario}**")
+    
+    st.markdown("### 📍 SELECCIONE SU DISPONIBILIDAD")
+    st.write("Indique si está listo para recibir pedidos:")
+
+    # Botones de estado con colores y tamaño completo
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        if st.button("🟢 ESTOY LIBRE", use_container_width=True):
+            st.session_state.estado_actual = "LIBRE"
+            st.toast("Cambiado a LIBRE")
+
+    with col2:
+        if st.button("🔴 ESTOY OCUPADO", use_container_width=True):
+            st.session_state.estado_actual = "OCUPADO"
+            st.toast("Cambiado a OCUPADO")
+
+    st.divider()
+
+    # --- INDICADOR VISUAL DE ESTADO ---
+    if st.session_state.estado_actual == "LIBRE":
+        st.markdown(f"""
+            <div style="background-color: #28a745; padding: 30px; border-radius: 15px; text-align: center; color: white;">
+                <h1 style="margin:0;">ESTADO: LIBRE</h1>
+                <p style="font-size: 20px;">Los clientes pueden ver que estás disponible.</p>
+            </div>
+        """, unsafe_allow_html=True)
+    elif st.session_state.estado_actual == "OCUPADO":
+        st.markdown(f"""
+            <div style="background-color: #dc3545; padding: 30px; border-radius: 15px; text-align: center; color: white;">
+                <h1 style="margin:0;">ESTADO: OCUPADO</h1>
+                <p style="font-size: 20px;">Aviso activo: CONDUCTORES OCUPADOS.</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.write("")
+    if st.button("🚪 Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
