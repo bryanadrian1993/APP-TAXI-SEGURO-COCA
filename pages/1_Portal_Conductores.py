@@ -18,7 +18,7 @@ def registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa
             "accion": "registro",
             "nombre": nombre, "apellido": apellido,
             "cedula": cedula, "email": email,
-            "direccion": direccion, # Enviamos la dirección
+            "direccion": direccion,
             "telefono": telefono, "placa": placa, "clave": clave
         }
         query_string = urllib.parse.urlencode(params)
@@ -81,7 +81,7 @@ ADJUNTO MIS 5 REQUISITOS (Fotos).
                 link_email = f"mailto:{EMAIL_ADMIN}?subject={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
                 link_gmail = f"https://mail.google.com/mail/?view=cm&fs=1&to={EMAIL_ADMIN}&su={urllib.parse.quote(asunto)}&body={urllib.parse.quote(cuerpo)}"
                 
-                # --- LISTA DE DOCUMENTOS ACTUALIZADA ---
+                # --- CAJA AZUL DE REQUISITOS ---
                 st.markdown("""
                 <div style='background-color:#E3F2FD; padding:20px; border-radius:10px; border:1px solid #BBDEFB;'>
                     <h3 style='color:#0D47A1; text-align:center;'>📨 ÚLTIMO PASO: ENVIAR REQUISITOS</h3>
@@ -98,6 +98,7 @@ ADJUNTO MIS 5 REQUISITOS (Fotos).
                 </div>
                 """, unsafe_allow_html=True)
                 
+                # --- BOTONES ---
                 c1, c2 = st.columns(2)
                 
                 c1.markdown(f"""
@@ -117,6 +118,10 @@ ADJUNTO MIS 5 REQUISITOS (Fotos).
                     📧 USAR GMAIL WEB
                 </a>
                 """, unsafe_allow_html=True)
+
+                # --- 👇 MENSAJE DE RESPALDO (NUEVO) ---
+                st.write("") # Espacio
+                st.info(f"⚠️ **¿Problemas con enviar los documentos?**\nSi no se abren las opciones anteriores, envía tus 5 fotos manualmente al correo: **{EMAIL_ADMIN}**")
                 
             else:
                 st.error(f"Error al registrar: {resultado}")
