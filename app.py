@@ -220,7 +220,7 @@ elif st.session_state.paso == 4:
     
     msg_encoded = urllib.parse.quote(mensaje_wa)
     # TU NÚMERO DE CONDUCTOR
-    link_final = f"https://wa.me/593982443582?text={msg_encoded}"
+    link_final = f"https://wa.me/593962384356?text={msg_encoded}"
     
     st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR CONFIRMACIÓN AL TAXISTA</a>', unsafe_allow_html=True)
     
