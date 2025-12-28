@@ -6,7 +6,7 @@ from datetime import datetime
 import urllib.parse 
 
 # 1. CONFIGURACIÓN BÁSICA
-st.set_page_config(page_title="TAXI SEGURO - COCA", page_icon="🚕", layout="centered")
+st.set_page_config(page_title="APP TAXI SEGURO - COCA", page_icon="🚕", layout="centered")
 
 # 2. ESTILOS VISUALES (IDÉNTICOS AL ORIGINAL)
 st.markdown("""
@@ -106,7 +106,7 @@ if boton_registro:
         
         msg_encoded = urllib.parse.quote(mensaje_texto)
         # Se mantiene el número original de tu código
-        link_final = f"https://wa.me/593982443582?text={msg_encoded}"
+        link_final = f"https://wa.me/593962384356?text={msg_encoded}"
         
         st.success("✅ ¡Datos guardados!")
         st.markdown(f'<a href="{link_final}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
