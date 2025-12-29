@@ -3,11 +3,12 @@ import pandas as pd
 import urllib.parse
 import urllib.request
 from datetime import datetime
+from streamlit_js_eval import get_geolocation # <--- IMPORTANTE: ESTO ES NUEVO AQUÍ
 
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN (URL ACTUALIZADA)
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
 EMAIL_SOPORTE = "taxi-seguro-world@hotmail.com"
@@ -49,6 +50,28 @@ if st.session_state.usuario_activo:
     st.markdown("---")
     
     st.subheader(f"🚦 ESTADO: {user.get('Estado', 'DESCONOCIDO')}")
+    
+    # === AQUÍ ESTÁ EL "AGENTE SECRETO" (RASTREO GPS) ===
+    # Solo rastreamos si el chofer dice que está LIBRE
+    if user.get('Estado') == "LIBRE":
+        # Solicitamos GPS de forma invisible
+        loc_chofer = get_geolocation(component_key='gps_driver')
+        
+        if loc_chofer:
+            lat = loc_chofer['coords']['latitude']
+            lon = loc_chofer['coords']['longitude']
+            
+            # Enviamos la ubicación a la Nube silenciosamente
+            enviar_datos({
+                "accion": "actualizar_gps_chofer",
+                "conductor": f"{user['Nombre']} {user['Apellido']}",
+                "lat": lat,
+                "lon": lon
+            })
+            # Opcional: Un puntito verde pequeño para que sepa que el GPS funciona
+            st.caption(f"📡 Señal GPS Activa: {lat:.4f}, {lon:.4f}")
+    # ===================================================
+
     c1, c2 = st.columns(2)
     with c1:
         if st.button("🟢 PONERME LIBRE", use_container_width=True):
@@ -86,7 +109,7 @@ if st.session_state.usuario_activo:
                     else: st.error("❌ Error de conexión.")
             else: st.warning("Escribe tu contraseña.")
 
-# ESCENARIO 2: LOGIN / REGISTRO
+# ESCENARIO 2: LOGIN / REGISTRO (SIN CAMBIOS)
 else:
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
     with tab1:
