@@ -63,7 +63,6 @@ if st.session_state.usuario_activo:
     user_ape = st.session_state.datos_usuario['Apellido']
     fila_actual = df_fresh[(df_fresh['Nombre'] == user_nom) & (df_fresh['Apellido'] == user_ape)]
     
-    # Referencia por posición de columna para evitar KeyErrors
     km_actuales = float(fila_actual.iloc[0, 16]) if not fila_actual.empty else 0.0
     deuda_actual = float(fila_actual.iloc[0, 17]) if not fila_actual.empty else 0.0
     bloqueado = deuda_actual >= DEUDA_MAXIMA
@@ -77,13 +76,13 @@ if st.session_state.usuario_activo:
             st.markdown(f'''<a href="{LINK_PAYPAL}" target="_blank" style="text-decoration:none;"><div style="background-color:#003087;color:white;padding:12px;border-radius:10px;text-align:center;font-weight:bold;">🔵 PAYPAL</div></a>''', unsafe_allow_html=True)
         with col_p2:
             if st.button("📱 MOSTRAR QR DEUNA", use_container_width=True):
-                # BUSCADOR INTELIGENTE DE IMAGEN (Busca en raíz y carpetas de descarga)
+                # 🛠️ SOLUCIÓN DE RUTA: Busca en la carpeta principal
                 directorio_actual = os.path.dirname(os.path.abspath(__file__))
                 carpeta_raiz = os.path.dirname(directorio_actual)
-                ruta_final = os.path.join(carpeta_raiz, "qr_deuna.png")
+                ruta_qr = os.path.join(carpeta_raiz, "qr_deuna.png")
                 
-                if os.path.exists(ruta_final):
-                    st.image(ruta_final, caption=f"Paga a: {NUMERO_DEUNA}")
+                if os.path.exists(ruta_qr):
+                    st.image(ruta_qr, caption=f"Paga a: {NUMERO_DEUNA}")
                 elif os.path.exists("qr_deuna.png"):
                     st.image("qr_deuna.png", caption=f"Paga a: {NUMERO_DEUNA}")
                 else:
