@@ -11,6 +11,9 @@ st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="ce
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw9h2Rm1JkZHnL56-TY8SiuPbeGlM5FJc7mQ1zIXYO4jzeEato_XJ0Jl-DzfTJhXjoQ/exec"
 
+# 📧 CORREO OFICIAL PARA RECEPCIÓN DE DOCUMENTOS
+EMAIL_SOPORTE = "taxi-seguro-world@hotmail.com"  # <--- ACTUALIZADO
+
 # --- INICIALIZAR ESTADO DE SESIÓN ---
 if 'usuario_activo' not in st.session_state:
     st.session_state.usuario_activo = False
@@ -18,7 +21,7 @@ if 'datos_usuario' not in st.session_state:
     st.session_state.datos_usuario = {}
 
 # ==========================================
-# 🌎 LISTAS GLOBALES (AMÉRICA Y EUROPA)
+# 🌎 LISTAS GLOBALES
 # ==========================================
 PAISES = [
     "Ecuador", "Colombia", "Perú", "México", "España", "Estados Unidos",
@@ -95,7 +98,6 @@ if st.session_state.usuario_activo:
                 st.toast("⛔ Te has puesto como Ocupado.")
                 st.rerun()
 
-    # Mostramos el estado actual grande
     estado_actual = st.session_state.datos_usuario.get('Estado', 'DESCONOCIDO')
     if estado_actual == "LIBRE":
         st.markdown(f"<h2 style='text-align: center; color: green;'>ESTADO: {estado_actual}</h2>", unsafe_allow_html=True)
@@ -116,7 +118,7 @@ if st.session_state.usuario_activo:
 else:
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
 
-    # --- PESTAÑA 1: LOGIN (NOMBRE Y APELLIDO) ---
+    # --- PESTAÑA 1: LOGIN ---
     with tab1:
         st.info("Ingresa tus datos para acceder.")
         
@@ -132,10 +134,8 @@ else:
             if l_nom and l_ape and l_pass:
                 with st.spinner("Buscando usuario..."):
                     df = cargar_datos("CHOFERES")
-                    
                     if not df.empty:
                         try:
-                            # Validación flexible (Mayúsculas/Minúsculas)
                             if 'Nombre' in df.columns and 'Apellido' in df.columns and 'Clave' in df.columns:
                                 df['N_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
                                 df['A_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
@@ -167,7 +167,7 @@ else:
             else:
                 st.warning("⚠️ Llena todos los campos.")
 
-    # --- PESTAÑA 2: REGISTRO GLOBAL (SIN RESTRICCIÓN DE TELÉFONO) ---
+    # --- PESTAÑA 2: REGISTRO GLOBAL ---
     with tab2:
         st.markdown("### 📝 Registro Global")
         st.caption("Únete a nuestra red internacional de conductores.")
@@ -181,31 +181,30 @@ else:
             r_ced = c3.text_input("Cédula/ID *")
             r_pais = c4.selectbox("País de Operación *", PAISES)
             
+            # --- EMAIL + DIRECCIÓN ---
             c5, c6 = st.columns(2)
             r_dir = c5.text_input("Dirección *")
-            r_idioma = c6.selectbox("Idioma *", IDIOMAS)
+            r_email = c6.text_input("Tu Correo Electrónico *") 
             
-            # --- AQUÍ ESTÁ EL CAMBIO: TELÉFONO INTERNACIONAL LIBRE ---
-            st.markdown("**Contacto Internacional**")
-            r_telf = st.text_input("WhatsApp (Incluye tu código de país) *", 
-                                  help="Ejemplo: +593... para Ecuador, +52... para México, +1... para USA")
+            c7, c8 = st.columns(2)
+            r_idioma = c7.selectbox("Idioma *", IDIOMAS)
+            r_telf = c8.text_input("WhatsApp (Incluye código país) *", help="Ej: +593... +52... +1...")
             
             st.markdown("---")
-            c7, c8 = st.columns(2)
-            r_pla = c7.text_input("Placa *")
-            r_veh = c8.selectbox("Tipo Vehículo *", VEHICULOS)
+            c9, c10 = st.columns(2)
+            r_pla = c9.text_input("Placa *")
+            r_veh = c10.selectbox("Tipo Vehículo *", VEHICULOS)
             
             r_pass1 = st.text_input("Crear Clave *", type="password")
             r_pass2 = st.text_input("Confirmar Clave *", type="password")
             
             if st.form_submit_button("✅ REGISTRARME AHORA"):
-                if not (r_nom and r_ape and r_ced and r_telf and r_pla and r_pass1):
-                    st.warning("⚠️ Por favor llena los campos obligatorios.")
+                if not (r_nom and r_ape and r_ced and r_telf and r_pla and r_pass1 and r_email):
+                    st.warning("⚠️ Por favor llena todos los campos obligatorios.")
                 elif r_pass1 != r_pass2:
                     st.error("⚠️ Las contraseñas no coinciden.")
                 else:
-                    with st.spinner("Creando cuenta global..."):
-                        # Se envía el teléfono tal cual lo escribe el usuario (sin agregar 593)
+                    with st.spinner("Creando cuenta..."):
                         datos = {
                             "accion": "registrar_conductor",
                             "nombre": r_nom, "apellido": r_ape,
@@ -213,12 +212,27 @@ else:
                             "placa": r_pla, "tipo_veh": r_veh,
                             "pais": r_pais, "idioma": r_idioma,
                             "direccion": r_dir, "clave": r_pass1,
-                            "email": ""
+                            "email": r_email
                         }
                         res = enviar_datos(datos)
+                        
                         if "REGISTRO_EXITOSO" in res:
-                            st.success(f"🎉 ¡Bienvenido! Tu cuenta para {r_pais} está lista.")
-                            st.info("Ve a la pestaña INGRESAR para comenzar a trabajar.")
                             st.balloons()
+                            st.success(f"🎉 ¡CUENTA CREADA EXITOSAMENTE!")
+                            
+                            # --- ADVERTENCIA FINAL ---
+                            st.error(f"""
+                                ⚠️ **¡ATENCIÓN! PASO FINAL OBLIGATORIO** ⚠️
+                                
+                                Para activar tu cuenta definitivamente, debes enviar una foto clara de:
+                                1. Tu Cédula o ID (Ambos lados)
+                                2. Tu Licencia de Conducir
+                                3. La Matrícula/Papeles del Vehículo
+                                
+                                📧 **ENVÍALOS AHORA MISMO A:** {EMAIL_SOPORTE}
+                                
+                                ⏳ **Tienes un lapso de 48 HORAS.**
+                                Si no recibimos tus documentos, tu cuenta será **INHABILITADA** automáticamente.
+                            """)
                         else:
                             st.error("Error de conexión.")
