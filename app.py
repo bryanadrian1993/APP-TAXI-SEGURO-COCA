@@ -7,10 +7,10 @@ import urllib.request
 import random
 import math
 
-# --- ⚙️ CONFIGURACIÓN ---
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN TÉCNICA
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
@@ -19,130 +19,7 @@ EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# --- 🌍 DICCIONARIO DE TRADUCCIONES (7 IDIOMAS - NIVEL 2) ---
-TRADUCCIONES = {
-    "Español": {
-        "bienvenida": "🚖 TAXI SEGURO",
-        "subtitulo": "🌎 SERVICIO GLOBAL",
-        "paso1": "📡 PASO 1: ACTIVAR UBICACIÓN",
-        "paso2": "📝 PASO 2: DATOS DEL VIAJE",
-        "gps_ok": "✅ GPS ACTIVADO",
-        "gps_off": "📍 Por favor activa tu GPS.",
-        "nombre": "Tu Nombre:",
-        "pregunta": "¿Qué necesitas?",
-        "boton": "🚖 SOLICITAR UNIDAD",
-        "error": "⚠️ Nombre, Teléfono y Referencia son obligatorios.",
-        "buscando": "🔄 Buscando la unidad más cercana...",
-        "encontrado": "✅ ¡Unidad Encontrada! Conductor: ",
-        "no_libre": "❌ No hay conductores 'LIBRES' cerca de ti.",
-        "footer_ayuda": "¿Necesitas ayuda?",
-        "whatsapp": "📲 ENVIAR UBICACIÓN"
-    },
-    "English": {
-        "bienvenida": "🚖 SECURE TAXI",
-        "subtitulo": "🌎 GLOBAL SERVICE",
-        "paso1": "📡 STEP 1: ENABLE LOCATION",
-        "paso2": "📝 STEP 2: TRIP DETAILS",
-        "gps_ok": "✅ GPS ENABLED",
-        "gps_off": "📍 Please enable your GPS.",
-        "nombre": "Your Name:",
-        "pregunta": "What do you need?",
-        "boton": "🚖 REQUEST RIDE",
-        "error": "⚠️ Name, Phone, and Reference are required.",
-        "buscando": "🔄 Looking for the nearest unit...",
-        "encontrado": "✅ Unit Found! Driver: ",
-        "no_libre": "❌ No 'FREE' drivers near you.",
-        "footer_ayuda": "Need help?",
-        "whatsapp": "📲 SEND LOCATION"
-    },
-    "Português": {
-        "bienvenida": "🚖 TÁXI SEGURO",
-        "subtitulo": "🌎 SERVIÇO GLOBAL",
-        "paso1": "📡 PASSO 1: ATIVAR LOCALIZAÇÃO",
-        "paso2": "📝 PASSO 2: DADOS DA VIAGEM",
-        "gps_ok": "✅ GPS ATIVADO",
-        "gps_off": "📍 Por favor, ative seu GPS.",
-        "nombre": "Seu Nome:",
-        "pregunta": "O que você precisa?",
-        "boton": "🚖 SOLICITAR UNIDADE",
-        "error": "⚠️ Nome, Telefone e Referência são obrigatórios.",
-        "buscando": "🔄 Procurando a unidade mais próxima...",
-        "encontrado": "✅ Unidade Encontrada! Motorista: ",
-        "no_libre": "❌ Não há motoristas 'LIVRES' perto de você.",
-        "footer_ayuda": "Precisa de ajuda?",
-        "whatsapp": "📲 ENVIAR LOCALIZAÇÃO"
-    },
-    "Français": {
-        "bienvenida": "🚖 TAXI SÉCURISÉ",
-        "subtitulo": "🌎 SERVICE GLOBAL",
-        "paso1": "📡 ÉTAPE 1 : ACTIVER LA LOCALISATION",
-        "paso2": "📝 ÉTAPE 2 : DÉTAILS DU VOYAGE",
-        "gps_ok": "✅ GPS ACTIVÉ",
-        "gps_off": "📍 Veuillez activer votre GPS.",
-        "nombre": "Votre Nom :",
-        "pregunta": "De quoi avez-vous besoin ?",
-        "boton": "🚖 DEMANDER UNE COURSE",
-        "error": "⚠️ Le nom, le téléphone et la référence sont obligatoires.",
-        "buscando": "🔄 Recherche de l'unité la plus proche...",
-        "encontrado": "✅ Unité Trouvée ! Chauffeur : ",
-        "no_libre": "❌ Aucun chauffeur 'LIBRE' à proximité.",
-        "footer_ayuda": "Besoin d'aide ?",
-        "whatsapp": "📲 ENVOYER LA LOCALISATION"
-    },
-    "Italiano": {
-        "bienvenida": "🚖 TAXI SICURO",
-        "subtitulo": "🌎 SERVIZIO GLOBALE",
-        "paso1": "📡 PASSO 1: ATTIVA POSIZIONE",
-        "paso2": "📝 PASSO 2: DETTAGLI VIAGGIO",
-        "gps_ok": "✅ GPS ATTIVATO",
-        "gps_off": "📍 Per favore attiva il tuo GPS.",
-        "nombre": "Il tuo Nome:",
-        "pregunta": "Di cosa hai bisogno?",
-        "boton": "🚖 RICHIEDI CORSA",
-        "error": "⚠️ Nome, Telefono e Riferimento sono obbligatori.",
-        "buscando": "🔄 Ricerca dell'unità più vicina...",
-        "encontrado": "✅ Unità Trovata! Conducente: ",
-        "no_libre": "❌ Nessun conducente 'LIBERO' nelle vicinanze.",
-        "footer_ayuda": "Serve aiuto?",
-        "whatsapp": "📲 INVIA POSIZIONE"
-    },
-    "Deutsch": {
-        "bienvenida": "🚖 SICHERES TAXI",
-        "subtitulo": "🌎 GLOBALER SERVICE",
-        "paso1": "📡 SCHRITT 1: STANDORT AKTIVIEREN",
-        "paso2": "📝 SCHRITT 2: REISEINFOS",
-        "gps_ok": "✅ GPS AKTIVIERT",
-        "gps_off": "📍 Bitte aktivieren Sie Ihr GPS.",
-        "nombre": "Ihr Name:",
-        "pregunta": "Was brauchen Sie?",
-        "boton": "🚖 TAXI ANFORDERN",
-        "error": "⚠️ Name, Telefon und Referenz sind erforderlich.",
-        "buscando": "🔄 Suche nach der nächsten Einheit...",
-        "encontrado": "✅ Einheit gefunden! Fahrer: ",
-        "no_libre": "❌ Keine 'FREIEN' Fahrer in Ihrer Nähe.",
-        "footer_ayuda": "Brauchen Sie Hilfe?",
-        "whatsapp": "📲 STANDORT SENDEN"
-    },
-    "Kichwa": {
-        "bienvenida": "🚖 ALLI ANTAWA",
-        "subtitulo": "🌎 TUKUY LLAKTAPAK",
-        "paso1": "📡 SHUK: MAYPI KASHKATA RICUCHIY",
-        "paso2": "📝 ISHKAY: PURINAPAK WILLAY",
-        "gps_ok": "✅ GPS LLANKACUNMI",
-        "gps_off": "📍 GPS-ta pascary.",
-        "nombre": "Kampa Shuti:",
-        "pregunta": "Imatatak mutsurinki?",
-        "boton": "🚖 ANTAWATA MAÑAY",
-        "error": "⚠️ Shuti, Yupay, mañaypash mutsurikunmi.",
-        "buscando": "🔄 Kuchulla antawata maskacun...",
-        "encontrado": "✅ Antawa tarishca! Pushac: ",
-        "no_libre": "❌ Mana tiyanchu pushaccuna.",
-        "footer_ayuda": "Yanapata munankichu?",
-        "whatsapp": "📲 MAYPI KASHKATA KACHAY"
-    }
-}
-
-# --- 🎨 ESTILOS CSS ---
+# 🎨 ESTILOS (Mantenidos exactamente igual)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -165,7 +42,7 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# --- FUNCIONES DE DATOS ---
+# --- FUNCIONES ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -193,10 +70,8 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
     df_choferes = cargar_datos("CHOFERES")
     df_ubicaciones = cargar_datos("UBICACIONES")
     if df_choferes.empty or df_ubicaciones.empty: return None, None, None
-    
     libres = df_choferes[df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
     if libres.empty: return None, None, None
-            
     mejor_chofer, menor_distancia = None, float('inf')
     for index, chofer in libres.iterrows():
         nombre_completo = f"{chofer['Nombre']} {chofer['Apellido']}"
@@ -206,7 +81,6 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
             dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
             if dist < menor_distancia:
                 menor_distancia, mejor_chofer = dist, chofer
-    
     if mejor_chofer is not None:
         telf = ''.join(filter(str.isdigit, str(mejor_chofer['Telefono'])))
         if (len(telf) == 9 or len(telf) == 10) and telf.startswith("0"): telf = "593" + telf[1:]
@@ -214,62 +88,62 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
         return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf, foto
     return None, None, None
 
-# --- 📱 INTERFAZ PRINCIPAL ---
-
-# Selector de Idioma (Nivel 2)
-st.sidebar.markdown("### 🌐 Language / Idioma")
-idioma_sel = st.sidebar.selectbox("Select Language", list(TRADUCCIONES.keys()))
-t = TRADUCCIONES[idioma_sel]
-
-st.markdown(f'<div class="main-title">{t["bienvenida"]}</div>', unsafe_allow_html=True)
-st.markdown(f'<div class="sub-title">{t["subtitulo"]}</div>', unsafe_allow_html=True)
-st.sidebar.info("👋 Conductores:\nPortal de Socios en el menú.")
-
+# --- INTERFAZ CLIENTE (Sin cambios visuales) ---
+st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">🌎 SERVICIO GLOBAL</div>', unsafe_allow_html=True)
+st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
 st.divider()
 
-# Paso 1: GPS
-st.markdown(f'<div class="step-header">{t["paso1"]}</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
 loc = get_geolocation()
 lat_actual, lon_actual = (loc['coords']['latitude'], loc['coords']['longitude']) if loc else (LAT_BASE, LON_BASE)
+if loc: st.success("✅ GPS ACTIVADO")
+else: st.info("📍 Por favor activa tu GPS.")
 
-if loc: st.success(t["gps_ok"])
-else: st.info(t["gps_off"])
-
-# Paso 2: Formulario
-st.markdown(f'<div class="step-header">{t["paso2"]}</div>', unsafe_allow_html=True)
+st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
-    nombre_cli = st.text_input(t["nombre"])
-    prefijo_pais = st.selectbox("País / Country", ["+593 (Ecuador)", "+57 (Colombia)", "+51 (Perú)", "+52 (México)", "+34 (España)", "+1 (USA)", "Otro"])
-    celular_cli = st.text_input("WhatsApp (No code)")
-    ref_cli = st.text_input("Referencia:")
-    tipo_veh = st.selectbox(t["pregunta"], ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
-    enviar = st.form_submit_button(t["boton"])
+    nombre_cli = st.text_input("Tu Nombre:")
+    st.write("Tu Número de WhatsApp:")
+    col_pref, col_num = st.columns([1.5, 3])
+    
+    # LISTA ACTUALIZADA CON IDIOMAS Y POTENCIAS
+    prefijo_pais = col_pref.selectbox("País", [
+        "+593 (Ecuador)", "+57 (Colombia)", "+51 (Perú)", "+1 (USA/Canada)", 
+        "+34 (España)", "+44 (UK)", "+55 (Brasil)", "+33 (Francia)", 
+        "+39 (Italia)", "+49 (Alemania)", "+86 (China)", "+81 (Japón)", "+7 (Rusia)"
+    ])
+    celular_cli = col_num.text_input("Número (Sin el código)")
+    
+    ref_cli = st.text_input("Referencia / Dirección:")
+    tipo_veh = st.selectbox("¿Qué necesitas?", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
+    enviar = st.form_submit_button("🚖 SOLICITAR UNIDAD")
 
 if enviar:
     if not nombre_cli or not ref_cli or not celular_cli:
-        st.error(t["error"])
+        st.error("⚠️ Nombre, Teléfono y Referencia son obligatorios.")
     else:
         tel_final_cli = formatear_internacional(prefijo_pais, celular_cli)
-        with st.spinner(t["buscando"]):
+        with st.spinner("🔄 Buscando la unidad más cercana..."):
             chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
             id_v = f"TX-{random.randint(1000, 9999)}"
+            mapa_link = f"https://www.google.com/maps?q={lat_actual},{lon_actual}"
             
             enviar_datos_a_sheets({
                 "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_final_cli, 
                 "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", 
-                "mapa": f"https://www.google.com/maps?q={lat_actual},{lon_actual}", "id_viaje": id_v
+                "mapa": mapa_link, "id_viaje": id_v
             })
             
             if chof:
                 st.balloons()
-                st.success(f"{t['encontrado']} **{chof}**")
+                st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 if foto_chof and "http" in foto_chof:
                     st.markdown(f'<div style="text-align:center;"><img src="{foto_chof}" style="width:120px;border-radius:50%;border:4px solid #25D366;"></div>', unsafe_allow_html=True)
+                st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 
-                msg = f"🚖 *PEDIDO*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n🗺️ Mapa: https://www.google.com/maps?q={lat_actual},{lon_actual}"
+                msg = f"🚖 *PEDIDO*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa_link}"
                 link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
-                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366;color:white;padding:15px;border-radius:10px;text-align:center;display:block;text-decoration:none;font-weight:bold;font-size:20px;">{t["whatsapp"]}</a>', unsafe_allow_html=True)
-            else: st.error(t["no_libre"])
+                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366;color:white;padding:15px;text-align:center;display:block;text-decoration:none;font-weight:bold;font-size:20px;">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
+            else: st.error("❌ No hay conductores 'LIBRES' cerca de ti.")
 
-# Footer
-st.markdown(f"""<div class="footer"><p>{t['footer_ayuda']}</p><p>📧 <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p><p>© 2025 Taxi Seguro</p></div>""", unsafe_allow_html=True)
+st.markdown(f'<div class="footer"><p>¿Necesitas ayuda?</p><p>📧 <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p><p>© 2025 Taxi Seguro Global</p></div>', unsafe_allow_html=True)
