@@ -56,13 +56,26 @@ def enviar_datos_a_sheets(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-def limpiar_telefono(numero):
+# === LIMPIEZA INTELIGENTE ===
+def formatear_internacional(prefijo, numero):
     if not numero: return ""
-    s = str(numero).split(".")[0].strip()
-    s = ''.join(filter(str.isdigit, s))
-    if s.startswith("0"): s = "593" + s[1:]
-    elif not s.startswith("593") and len(s) > 0: s = "593" + s
-    return s
+    # 1. Limpiar el número (quitar espacios, guiones, letras)
+    n = str(numero).split(".")[0].strip()
+    n = ''.join(filter(str.isdigit, n))
+    
+    # 2. Limpiar el prefijo (quitar el + y letras)
+    # Ejemplo: "+593 (Ecu)" -> "593"
+    p = str(prefijo).split(" ")[0].replace("+", "").strip()
+    
+    # 3. Si el usuario ya escribió el código de país en el número, no lo repetimos
+    if n.startswith(p):
+        return n # Ya tiene el código
+    
+    # 4. Quitamos el '0' inicial si existe (Común en Ecu, Col, UK)
+    if n.startswith("0"):
+        n = n[1:]
+        
+    return p + n
 
 def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
     df_choferes = cargar_datos("CHOFERES")
@@ -95,14 +108,20 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
                 else: foto = str(mejor_chofer.iloc[11]) 
             except: pass
             
-            tel_limpio = limpiar_telefono(mejor_chofer['Telefono'])
-            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", tel_limpio, foto
+            # El chofer se asume que ya está registrado con su código correcto en la base
+            # Pero por seguridad, aplicamos limpieza básica si parece local
+            telf = str(mejor_chofer['Telefono']).split(".")[0].strip()
+            telf = ''.join(filter(str.isdigit, telf))
+            if telf.startswith("0"): telf = "593" + telf[1:] # Asumimos EC si no tiene código y empieza con 0
+            elif len(telf) == 9: telf = "593" + telf # Asumimos EC si tiene 9 dígitos
+            
+            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf, foto
             
     return None, None, None
 
 # --- INTERFAZ CLIENTE ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">🌎 SERVICIO GLOBAL</div>', unsafe_allow_html=True)
 st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
 st.divider()
 
@@ -121,26 +140,43 @@ else:
 st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
     nombre_cli = st.text_input("Tu Nombre:")
-    celular_cli = st.text_input("Tu WhatsApp:")
+    
+    # === SELECCIÓN INTERNACIONAL ===
+    st.write("Tu Número de WhatsApp:")
+    col_pref, col_num = st.columns([1.5, 3])
+    prefijo_pais = col_pref.selectbox("País", [
+        "+593 (Ecu)", "+57 (Col)", "+51 (Per)", "+52 (Mex)", 
+        "+54 (Arg)", "+56 (Chi)", "+34 (Esp)", "+1 (USA)", "Otro"
+    ])
+    celular_cli = col_num.text_input("Número (Sin el +593)")
+    # ===============================
+    
     ref_cli = st.text_input("Referencia / Dirección:")
     tipo_veh = st.selectbox("¿Qué necesitas?", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
     enviar = st.form_submit_button("🚖 SOLICITAR UNIDAD")
 
 if enviar:
-    if not nombre_cli or not ref_cli:
-        st.error("⚠️ Nombre y Referencia son obligatorios.")
+    if not nombre_cli or not ref_cli or not celular_cli:
+        st.error("⚠️ Nombre, Teléfono y Referencia son obligatorios.")
     else:
-        tel_limpio_cli = limpiar_telefono(celular_cli)
+        # CONSTRUIR NÚMERO INTERNACIONAL
+        tel_final_cli = formatear_internacional(prefijo_pais, celular_cli)
+            
         with st.spinner("🔄 Buscando la unidad más cercana..."):
             chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
             id_v = f"TX-{random.randint(1000, 9999)}"
             tipo_solo_texto = tipo_veh.split(" ")[0]
             
             enviar_datos_a_sheets({
-                "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio_cli, 
-                "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", 
-                "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, 
-                "id_viaje": id_v, "tipo": tipo_solo_texto
+                "accion": "registrar_pedido", 
+                "cliente": nombre_cli, 
+                "telefono_cli": tel_final_cli, # Enviamos el número internacional correcto
+                "referencia": ref_cli, 
+                "conductor": chof if chof else "OCUPADOS", 
+                "telefono_chof": t_chof if t_chof else "N/A", 
+                "mapa": mapa, 
+                "id_viaje": id_v, 
+                "tipo": tipo_solo_texto
             })
             
             if chof:
@@ -156,9 +192,8 @@ if enviar:
                 
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 
-                # BOTÓN BLINDADO
                 if t_chof and len(t_chof) > 5:
-                    msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
+                    msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_final_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
                     link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
                     st.markdown(f"""
                     <a href="{link_wa}" target="_blank" style="background-color: #25D366; color: white; padding: 15px; border-radius: 10px; text-align: center; display: block; text-decoration: none; font-weight: bold; font-size: 20px; margin-top: 10px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
