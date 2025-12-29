@@ -67,12 +67,23 @@ def formatear_internacional(prefijo, numero):
     if n.startswith("0"): n = n[1:]
     return p + n
 
-def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
+# Función modificada para filtrar por TIPO DE VEHÍCULO
+def obtener_chofer_mas_cercano(lat_cliente, lon_cliente, tipo_solicitado):
     df_choferes = cargar_datos("CHOFERES") #
     df_ubicaciones = cargar_datos("UBICACIONES")
     if df_choferes.empty or df_ubicaciones.empty: return None, None, None
-    libres = df_choferes[df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
+    
+    # Limpiar el texto para comparar (ej: de "Taxi 🚖" a "Taxi")
+    tipo_filtro = tipo_solicitado.split(" ")[0].strip().upper()
+    
+    # Filtrar solo conductores LIBRES que tengan el TIPO solicitado
+    libres = df_choferes[
+        (df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE') & 
+        (df_choferes['Tipo_Vehiculo'].astype(str).str.upper().str.contains(tipo_filtro))
+    ]
+    
     if libres.empty: return None, None, None
+    
     mejor_chofer, menor_distancia = None, float('inf')
     for index, chofer in libres.iterrows():
         nombre_completo = f"{chofer['Nombre']} {chofer['Apellido']}"
@@ -82,10 +93,10 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
             dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
             if dist < menor_distancia:
                 menor_distancia, mejor_chofer = dist, chofer
+    
     if mejor_chofer is not None:
         telf = ''.join(filter(str.isdigit, str(mejor_chofer['Telefono'])))
         if (len(telf) == 9 or len(telf) == 10) and telf.startswith("0"): telf = "593" + telf[1:]
-        # Buscamos la foto en la columna correcta (Foto_Perfil)
         foto = str(mejor_chofer['Foto_Perfil']) if 'Foto_Perfil' in mejor_chofer else ""
         return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf, foto
     return None, None, None
@@ -125,9 +136,10 @@ if enviar:
     else:
         tel_final_cli = formatear_internacional(prefijo_pais, celular_cli)
         with st.spinner("🔄 Buscando la unidad más cercana..."):
-            chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
+            # Se agrega 'tipo_veh' para filtrar por tipo de unidad
+            chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual, tipo_veh)
             id_v = f"TX-{random.randint(1000, 9999)}"
-            mapa_link = f"http://maps.google.com/maps?q={lat_actual},{lon_actual}" # Corregido link de mapa
+            mapa_link = f"http://maps.google.com/maps?q={lat_actual},{lon_actual}"
             
             enviar_datos_a_sheets({
                 "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_final_cli, 
@@ -137,21 +149,21 @@ if enviar:
             
             if chof:
                 st.balloons()
-                # 📸 MOSTRAR FOTO Y ID (RESGUARDANDO INTERFAZ ORIGINAL)
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 
                 if foto_chof and "http" in foto_chof:
-                    # Reparador de enlace Google Drive integrado
                     match_foto = re.search(r'[-\w]{25,}', foto_chof)
                     if match_foto:
                         id_foto = match_foto.group()
                         url_foto_final = f"https://lh3.googleusercontent.com/u/0/d/{id_foto}"
+                        # Foto circular reparada para Google Drive
                         st.markdown(f'<div style="text-align:center; margin-bottom:15px;"><img src="{url_foto_final}" style="width:130px;height:130px;border-radius:50%;object-fit:cover;border:4px solid #25D366;box-shadow: 0 4px 8px rgba(0,0,0,0.2);"></div>', unsafe_allow_html=True)
 
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 
                 msg = f"🚖 *PEDIDO*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa_link}"
                 link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
+                # Botón de WhatsApp exactamente como en tu diseño
                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366;color:white;padding:15px;text-align:center;display:block;text-decoration:none;font-weight:bold;font-size:20px;border-radius:10px;">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
             else: st.error("❌ No hay conductores 'LIBRES' cerca de ti.")
 
