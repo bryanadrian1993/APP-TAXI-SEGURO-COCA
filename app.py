@@ -10,7 +10,7 @@ import random
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🎨 ESTILOS VISUALES ORIGINALES (CSS)
+# 🎨 ESTILOS VISUALES ORIGINALES (CSS) - SIN CAMBIOS
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -27,9 +27,9 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 🆔 DATOS DE CONEXIÓN
+# 🆔 DATOS DE CONEXIÓN ACTUALIZADOS
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycby30drVC_eIllixCfB_aySv-NzVFmPhT8BUZcoyFLLv4zYEtTHhEe_Z9ZnHupgNk7ns/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzJcAE1b_GcXEUxdWgEDgZu6Kc7NxE2Ya9YGM-1Kf34O3Z_16hDDLXo242wRNhcTRuB/exec"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
@@ -52,8 +52,8 @@ def obtener_chofer_libre():
     df = cargar_datos("CHOFERES")
     if not df.empty:
         df['Estado'] = df['Estado'].astype(str).str.strip().str.upper()
-        df['Validated'] = df['Validado'].astype(str).str.strip().str.upper() if 'Validado' in df.columns else 'SI'
-        aptos = df[(df['Estado'] == 'LIBRE') & (df['Validated'] == 'SI')]
+        df['Validado'] = df['Validado'].astype(str).str.strip().str.upper() if 'Validado' in df.columns else 'SI'
+        aptos = df[(df['Estado'] == 'LIBRE') & (df['Validado'] == 'SI')]
         if not aptos.empty:
             el = aptos.sample(1).iloc[0]
             return f"{el['Nombre']} {el['Apellido']}", str(el['Telefono']).replace(".0", "")
@@ -70,6 +70,7 @@ st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
 st.divider()
 
+# PASO 1: GPS
 st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
 loc = get_geolocation()
 if loc:
@@ -81,6 +82,7 @@ else:
     mapa = "No detectado"
     st.info("📍 Por favor activa tu GPS para localizarte.")
 
+# PASO 2: FORMULARIO
 st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
     nombre_cli = st.text_input("Nombre del cliente:")
@@ -93,6 +95,7 @@ if enviar:
     if not nombre_cli or not ref_cli:
         st.error("⚠️ Nombre y Referencia son obligatorios.")
     else:
+        # LIMPIEZA DE TELÉFONO DEL CLIENTE
         tel_limpio = ''.join(filter(str.isdigit, celular_cli))
         if tel_limpio.startswith("0"): tel_limpio = "593" + tel_limpio[1:]
         elif not tel_limpio.startswith("593"): tel_limpio = "593" + tel_limpio
@@ -100,16 +103,19 @@ if enviar:
         dist = calcular_distancia(LAT_BASE, LON_BASE, lat, lon)
         costo = round(max(1.50, dist * 0.75), 2)
         
-        with st.spinner("🔄 Procesando viaje..."):
+        with st.spinner("🔄 Procesando pedido..."):
             chof, t_chof = obtener_chofer_libre()
             id_v = f"TX-{random.randint(1000, 9999)}"
-            tipo_solo_texto = tipo_veh.split(" ")[0] # Extrae Taxi, Camioneta o Ejecutivo
+            
+            # Limpiamos el texto para el Excel (Quitamos el emoji)
+            tipo_solo_texto = tipo_veh.split(" ")[0]
 
+            # REGISTRO EN EXCEL
             registrar_viaje_en_sheets({
                 "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio, 
                 "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", 
                 "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v,
-                "tipo": tipo_solo_texto # <-- ENVIAMOS EL TIPO AL EXCEL
+                "tipo": tipo_solo_texto # Enviamos el tipo de unidad
             })
             
             st.markdown(f'<div class="precio-box">Costo estimado: ${costo}</div>', unsafe_allow_html=True)
@@ -118,8 +124,10 @@ if enviar:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID DE VIAJE: {id_v}</span></div>', unsafe_allow_html=True)
                 
+                # MENSAJE DE WHATSAPP DINÁMICO
                 tipo_msg = tipo_solo_texto.upper()
                 msg = f"🚖 *PEDIDO DE {tipo_msg}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n💰 Precio: ${costo}\n🗺️ Mapa: {mapa}"
+                
                 link_wa = f"https://wa.me/{t_chof}?text={urllib.parse.quote(msg)}"
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
             else:
