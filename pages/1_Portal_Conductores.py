@@ -4,6 +4,7 @@ import urllib.parse
 import urllib.request
 import base64
 import math
+import os
 from datetime import datetime
 from streamlit_js_eval import get_geolocation
 
@@ -39,16 +40,10 @@ def cargar_datos(hoja):
 
 def enviar_datos(datos):
     try:
-        if 'imagen_base64' in datos:
-            data = urllib.parse.urlencode(datos).encode()
-            req = urllib.request.Request(URL_SCRIPT, data=data) 
-            with urllib.request.urlopen(req) as response:
-                return response.read().decode('utf-8')
-        else:
-            params = urllib.parse.urlencode(datos)
-            url_final = f"{URL_SCRIPT}?{params}"
-            with urllib.request.urlopen(url_final) as response:
-                return response.read().decode('utf-8')
+        params = urllib.parse.urlencode(datos)
+        url_final = f"{URL_SCRIPT}?{params}"
+        with urllib.request.urlopen(url_final) as response:
+            return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
 def calcular_distancia(lat1, lon1, lat2, lon2):
@@ -68,6 +63,7 @@ if st.session_state.usuario_activo:
     user_ape = st.session_state.datos_usuario['Apellido']
     fila_actual = df_fresh[(df_fresh['Nombre'] == user_nom) & (df_fresh['Apellido'] == user_ape)]
     
+    # Referencia por posición de columna para evitar KeyErrors
     km_actuales = float(fila_actual.iloc[0, 16]) if not fila_actual.empty else 0.0
     deuda_actual = float(fila_actual.iloc[0, 17]) if not fila_actual.empty else 0.0
     bloqueado = deuda_actual >= DEUDA_MAXIMA
@@ -81,8 +77,18 @@ if st.session_state.usuario_activo:
             st.markdown(f'''<a href="{LINK_PAYPAL}" target="_blank" style="text-decoration:none;"><div style="background-color:#003087;color:white;padding:12px;border-radius:10px;text-align:center;font-weight:bold;">🔵 PAYPAL</div></a>''', unsafe_allow_html=True)
         with col_p2:
             if st.button("📱 MOSTRAR QR DEUNA", use_container_width=True):
-                try: st.image("qr_deuna.png", caption=f"WhatsApp: {NUMERO_DEUNA}")
-                except: st.error("No se encontró 'qr_deuna.png' en la carpeta.")
+                # BUSCADOR INTELIGENTE DE IMAGEN (Busca en raíz y carpetas de descarga)
+                directorio_actual = os.path.dirname(os.path.abspath(__file__))
+                carpeta_raiz = os.path.dirname(directorio_actual)
+                ruta_final = os.path.join(carpeta_raiz, "qr_deuna.png")
+                
+                if os.path.exists(ruta_final):
+                    st.image(ruta_final, caption=f"Paga a: {NUMERO_DEUNA}")
+                elif os.path.exists("qr_deuna.png"):
+                    st.image("qr_deuna.png", caption=f"Paga a: {NUMERO_DEUNA}")
+                else:
+                    st.error("No se encontró 'qr_deuna.png' en la carpeta.")
+                    st.info("Asegúrate de que el nombre sea exacto.")
 
         if st.button("🔄 YA PAGUÉ, REVISAR MI SALDO", type="primary"):
             res = enviar_datos({"accion": "registrar_pago_deuda", "nombre_completo": f"{user_nom} {user_ape}"})
@@ -93,7 +99,6 @@ if st.session_state.usuario_activo:
         st.metric("💸 Deuda Actual", f"${deuda_actual:.2f}")
         st.progress(min(deuda_actual/DEUDA_MAXIMA, 1.0))
 
-        # --- CONTROLES DE ESTADO ---
         st.subheader(f"🚦 ESTADO: {st.session_state.datos_usuario.get('Estado', 'OCUPADO')}")
         if st.session_state.datos_usuario.get('Estado') == "LIBRE":
             loc = get_geolocation(component_key='driver_gps')
