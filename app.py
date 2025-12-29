@@ -10,14 +10,15 @@ import math
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
+# TU URL GENERADA (NO LA TOQUES)
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS (INTACTOS)
+# 🎨 ESTILOS (EXACTAMENTE IGUALES)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -57,6 +58,21 @@ def enviar_datos_a_sheets(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
+# === CORRECCIÓN INVISIBLE: LIMPIEZA DE NÚMERO ===
+def limpiar_telefono(numero):
+    if not numero: return ""
+    # Convertimos a texto y quitamos el ".0" que a veces pone Excel
+    s = str(numero).split(".")[0].strip()
+    # Dejamos solo números
+    s = ''.join(filter(str.isdigit, s))
+    # Agregamos 593 si falta
+    if s.startswith("0"): 
+        s = "593" + s[1:]
+    elif not s.startswith("593") and len(s) > 0:
+        s = "593" + s
+    return s
+# ================================================
+
 def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
     df_choferes = cargar_datos("CHOFERES")
     df_ubicaciones = cargar_datos("UBICACIONES")
@@ -82,24 +98,21 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
                     mejor_chofer = chofer
         
         if mejor_chofer is not None:
-            # Intento de leer la foto (Columna L del Excel)
-            # Como pandas lee columnas, buscamos si existe una columna que empiece por http o se llame FOTO
-            # En tu script la guardamos en la columna 12 (indice 11).
+            # Recuperar foto (intento por nombre o por posición)
             foto = ""
             try:
-                # Intentamos leer la columna 'FOTO_PENDIENTE' si existe, sino usamos iloc
-                if 'FOTO_PENDIENTE' in mejor_chofer:
-                    foto = str(mejor_chofer['FOTO_PENDIENTE'])
-                else:
-                    # Fallback si el header no coincide
-                    foto = str(mejor_chofer.iloc[11]) 
+                if 'FOTO_PENDIENTE' in mejor_chofer: foto = str(mejor_chofer['FOTO_PENDIENTE'])
+                else: foto = str(mejor_chofer.iloc[11]) 
             except: pass
             
-            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", str(mejor_chofer['Telefono']).replace(".0", ""), foto
+            # Limpiamos el teléfono aquí mismo antes de devolverlo
+            tel_limpio = limpiar_telefono(mejor_chofer['Telefono'])
+            
+            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", tel_limpio, foto
             
     return None, None, None
 
-# --- INTERFAZ CLIENTE ---
+# --- INTERFAZ CLIENTE (INTACTA) ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
 st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
@@ -129,32 +142,33 @@ if enviar:
     if not nombre_cli or not ref_cli:
         st.error("⚠️ Nombre y Referencia son obligatorios.")
     else:
-        tel_limpio = ''.join(filter(str.isdigit, celular_cli))
-        if tel_limpio.startswith("0"): tel_limpio = "593" + tel_limpio[1:]
-        elif not tel_limpio.startswith("593"): tel_limpio = "593" + tel_limpio
+        # Limpiamos también el número del cliente por si acaso
+        tel_limpio_cli = limpiar_telefono(celular_cli)
             
         with st.spinner("🔄 Buscando la unidad más cercana..."):
             chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
             id_v = f"TX-{random.randint(1000, 9999)}"
             tipo_solo_texto = tipo_veh.split(" ")[0]
-            enviar_datos_a_sheets({"accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio, "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v, "tipo": tipo_solo_texto})
+            enviar_datos_a_sheets({"accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio_cli, "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v, "tipo": tipo_solo_texto})
             
             if chof:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 
-                # --- AQUÍ MOSTRAMOS LA FOTO (NUEVO) ---
+                # FOTO (CON EL TRUCO DEL THUMBNAIL PARA QUE SE VEA)
                 if foto_chof and "http" in foto_chof:
+                    foto_visible = foto_chof.replace("uc?export=view&", "thumbnail?sz=w400&")
                     st.markdown(f"""
                     <div style="display: flex; justify-content: center; margin-bottom: 15px;">
-                        <img src="{foto_chof}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #25D366; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
+                        <img src="{foto_visible}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #25D366; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
                     </div>
                     """, unsafe_allow_html=True)
-                # --------------------------------------
                 
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
-                msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
-                link_wa = f"https://wa.me/{t_chof}?text={urllib.parse.quote(msg)}"
+                msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
+                
+                # LINK SEGURO
+                link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
             else: st.error("❌ No hay conductores 'LIBRES' cerca de ti en este momento.")
 
