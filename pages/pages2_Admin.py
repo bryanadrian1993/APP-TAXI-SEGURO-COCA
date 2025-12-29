@@ -8,9 +8,9 @@ from datetime import datetime
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Admin Panel", page_icon="👮‍♂️", layout="wide")
 
-# 🆔 CONEXIÓN
+# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 ADMIN_PASSWORD = "admin123"
 
 # --- FUNCIONES ---
@@ -123,8 +123,7 @@ with tab2:
                 pickable=True
             )
 
-            # === AQUÍ ESTÁ EL ARREGLO ===
-            # Usamos un estilo "Positron" (Claro/Calles) que es público y gratuito.
+            # MAPA GRATUITO Y PÚBLICO
             st.pydeck_chart(pdk.Deck(
                 map_style='https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', 
                 initial_view_state=view_state,
