@@ -10,14 +10,14 @@ import math
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN
+# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS
+# 🎨 ESTILOS (INTACTOS)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -82,12 +82,19 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
                     mejor_chofer = chofer
         
         if mejor_chofer is not None:
-            # Ahora también devolvemos la FOTO
-            foto = str(mejor_chofer.get('FOTO_PENDIENTE', '')) # Columna L es llamada FOTO_PENDIENTE en el script pero lee el header
-            # Si el header en Excel dice "FOTO_PENDIENTE" u otro, pandas lo lee.
-            # En tu excel vi que la col L no tiene nombre claro, asumiremos que Pandas la lee por index si falla, 
-            # pero el Script escribe en la columna 12.
-            # Mejor intentamos obtener el valor de la columna 11 (empezando en 0)
+            # Intento de leer la foto (Columna L del Excel)
+            # Como pandas lee columnas, buscamos si existe una columna que empiece por http o se llame FOTO
+            # En tu script la guardamos en la columna 12 (indice 11).
+            foto = ""
+            try:
+                # Intentamos leer la columna 'FOTO_PENDIENTE' si existe, sino usamos iloc
+                if 'FOTO_PENDIENTE' in mejor_chofer:
+                    foto = str(mejor_chofer['FOTO_PENDIENTE'])
+                else:
+                    # Fallback si el header no coincide
+                    foto = str(mejor_chofer.iloc[11]) 
+            except: pass
+            
             return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", str(mejor_chofer['Telefono']).replace(".0", ""), foto
             
     return None, None, None
@@ -136,14 +143,14 @@ if enviar:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 
-                # --- AQUÍ MOSTRAMOS LA FOTO ---
+                # --- AQUÍ MOSTRAMOS LA FOTO (NUEVO) ---
                 if foto_chof and "http" in foto_chof:
                     st.markdown(f"""
-                    <div style="display: flex; justify-content: center; margin-bottom: 10px;">
-                        <img src="{foto_chof}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #25D366;">
+                    <div style="display: flex; justify-content: center; margin-bottom: 15px;">
+                        <img src="{foto_chof}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #25D366; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
                     </div>
                     """, unsafe_allow_html=True)
-                # ------------------------------
+                # --------------------------------------
                 
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
