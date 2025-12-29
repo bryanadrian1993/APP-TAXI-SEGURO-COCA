@@ -88,32 +88,33 @@ with tab2:
     if not df_gps.empty:
         df_mapa = df_gps.copy()
         
-        # === LIMPIEZA AGRESIVA DE DATOS ===
-        # 1. Convertimos todo a string primero
-        df_mapa['Latitud'] = df_mapa['Latitud'].astype(str)
-        df_mapa['Longitud'] = df_mapa['Longitud'].astype(str)
+        # === LIMPIEZA INTELIGENTE DE COORDENADAS ===
+        def limpiar_coordenada(valor):
+            try:
+                # 1. Convertir a string y quitar todo lo que no sea número o signo menos
+                s = str(valor).replace(",", "").replace(".", "")
+                # 2. Convertir a numero entero puro (ej: -6684672)
+                num = float(s)
+                # 3. Si el número es muy grande (fuera del rango real GPS), lo dividimos
+                # El rango de latitud es -90 a 90. Si es mayor, es que le faltan decimales.
+                while abs(num) > 180: 
+                    num = num / 10
+                return num
+            except:
+                return None
+
+        # Aplicamos la limpieza
+        df_mapa['lat'] = df_mapa['Latitud'].apply(limpiar_coordenada)
+        df_mapa['lon'] = df_mapa['Longitud'].apply(limpiar_coordenada)
         
-        # 2. Reemplazamos puntos de miles si existen (ej: -6.684.672 -> -6684672 o similar)
-        # OJO: Aquí asumimos que si hay más de un punto, está mal.
-        # Mejor estrategia: Dejar que pandas intente adivinar el locale
-        
-        # Opción A: Limpieza manual simple (Quitar comas si las hubiera)
-        df_mapa['Latitud'] = df_mapa['Latitud'].str.replace(',', '.')
-        df_mapa['Longitud'] = df_mapa['Longitud'].str.replace(',', '.')
-        
-        # 3. Convertir a numérico forzado
-        df_mapa['lat'] = pd.to_numeric(df_mapa['Latitud'], errors='coerce')
-        df_mapa['lon'] = pd.to_numeric(df_mapa['Longitud'], errors='coerce')
-        
-        # 4. Eliminar filas inválidas (NaN)
+        # Eliminamos filas inválidas
         df_mapa = df_mapa.dropna(subset=['lat', 'lon'])
         
         if not df_mapa.empty:
-            # Mostramos el mapa solo con las columnas limpias
             st.map(df_mapa[['lat', 'lon']], zoom=14)
+            st.caption("Ubicaciones en tiempo real:")
             st.dataframe(df_gps.tail(5))
         else:
-            st.error("⚠️ Los datos de GPS no son números válidos. Revisa el Excel.")
-            st.write("Datos crudos recibidos:", df_gps.head())
+            st.warning("⚠️ No se pudieron procesar las coordenadas. Revisa el formato en Excel.")
     else:
         st.info("Sin señal GPS.")
