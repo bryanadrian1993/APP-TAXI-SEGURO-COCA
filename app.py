@@ -9,7 +9,7 @@ import random
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🎨 ESTILOS VISUALES (CSS) PARA DISEÑO IDÉNTICO
+# 🎨 ESTILOS VISUALES (CSS)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -35,7 +35,9 @@ LON_BASE = -76.989635
 # --- FUNCIONES CEREBRALES ---
 def cargar_datos(hoja):
     try:
-        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={hoja}"
+        # Evitamos caché para leer datos actualizados del Excel
+        cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
+        url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={hoja}&cb={cache_buster}"
         return pd.read_csv(url)
     except:
         return pd.DataFrame()
@@ -43,13 +45,23 @@ def cargar_datos(hoja):
 def obtener_chofer_libre():
     df = cargar_datos("CHOFERES")
     if not df.empty:
+        # Limpieza de columnas
         df['Estado'] = df['Estado'].astype(str).str.strip().str.upper()
-        choferes_libres = df[df['Estado'] == 'LIBRE']
-        if not choferes_libres.empty:
-            elegido = choferes_libres.sample(1).iloc[0]
-            nombre = elegido['Nombre']
-            telefono = str(elegido['Telefono']).replace(".0", "")
-            return nombre, telefono
+        
+        # Verificamos columna Validado (Columna M)
+        if 'Validado' in df.columns:
+            df['Validado'] = df['Validado'].astype(str).str.strip().str.upper()
+            
+            # FILTRO: Debe estar LIBRE y Validado con "SI"
+            choferes_aptos = df[(df['Estado'] == 'LIBRE') & (df['Validado'] == 'SI')]
+            
+            if not choferes_aptos.empty:
+                # Elección aleatoria entre los aptos
+                elegido = choferes_aptos.sample(1).iloc[0]
+                nombre_completo = f"{elegido['Nombre']} {elegido['Apellido']}"
+                telefono = str(elegido['Telefono']).replace(".0", "")
+                return nombre_completo, telefono
+                
     return None, None
 
 def calcular_distancia(lat1, lon1, lat2, lon2):
@@ -64,12 +76,11 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
 modo = st.sidebar.selectbox("Menú Principal:", ["🚖 PEDIR TAXI", "👮‍♂️ ADMINISTRADOR"])
 
 if modo == "🚖 PEDIR TAXI":
-    # CABECERA VISUAL
     st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
     st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
     st.divider()
 
-    # PASO 1: GPS
+    # PASO 1: UBICACIÓN
     st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
     loc = get_geolocation()
     lat, lon, gps_activo = LAT_BASE, LON_BASE, False
@@ -78,50 +89,47 @@ if modo == "🚖 PEDIR TAXI":
     if loc:
         lat, lon, gps_activo = loc['coords']['latitude'], loc['coords']['longitude'], True
         mapa_link = f"https://www.google.com/maps?q={lat},{lon}"
-        st.success("✅ GPS ACTIVADO: Podemos ver tu ubicación real.")
+        st.success("✅ GPS ACTIVADO")
     else:
         st.info("📍 Por favor activa tu GPS para localizarte.")
 
-    # PASO 2: DATOS
+    # PASO 2: FORMULARIO
     st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
     with st.form("form_pedido"):
-        nombre = st.text_input("Nombre del cliente:")
-        celular = st.text_input("Número de WhatsApp:")
-        ref = st.text_input("Dirección/Referencia exacta (Ej: Frente al parque):")
-        tipo = st.selectbox("Tipo de unidad:", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
-        
+        nombre_cli = st.text_input("Nombre del cliente:")
+        celular_cli = st.text_input("Número de WhatsApp:")
+        ref_cli = st.text_input("Dirección/Referencia exacta:")
+        tipo_veh = st.selectbox("Tipo de unidad:", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
         enviar = st.form_submit_button("💰 COTIZAR VIAJE")
 
     if enviar:
-        if not nombre or not ref:
+        if not nombre_cli or not ref_cli:
             st.error("⚠️ Nombre y Referencia son obligatorios.")
         elif not gps_activo:
             st.warning("⚠️ Esperando señal de GPS...")
         else:
-            # Cálculos
+            # Cálculo de costo
             dist = calcular_distancia(LAT_BASE, LON_BASE, lat, lon)
             costo = round(max(1.50, dist * 0.75), 2)
             
-            with st.spinner("🔄 Localizando unidad cercana..."):
+            with st.spinner("🔄 Buscando unidad disponible y validada..."):
                 nombre_chof, telefono_chof = obtener_chofer_libre()
                 
-                # Definir destino y mensaje
+                # REFORMA: Lógica de asignación restrictiva
                 if nombre_chof:
-                    dest_numero = telefono_chof
-                    aviso = f"\n🚖 *CONDUCTOR ASIGNADO: {nombre_chof}*"
-                    mensaje_usuario = f"✅ ¡Unidad Encontrada! Conductor: **{nombre_chof}**"
+                    # CASO ÉXITO: Hay chofer libre y validado
+                    aviso_ws = f"\n🚖 *CONDUCTOR ASIGNADO: {nombre_chof}*"
+                    msg = f"🚖 *PEDIDO DE TAXI*\n👤 {nombre_cli}\n📱 {celular_cli}\n📍 {ref_cli}\n💰 Precio: ${costo}\n🗺️ {mapa_link}{aviso_ws}"
+                    link_wa = f"https://wa.me/{telefono_chof}?text={urllib.parse.quote(msg)}"
+                    
+                    st.balloons()
+                    st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
+                    st.success(f"✅ ¡Unidad Encontrada! Conductor: **{nombre_chof}**")
+                    st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
                 else:
-                    dest_numero = NUMERO_ADMIN
-                    aviso = "\n⚠️ *BUSCANDO UNIDAD (Central)*"
-                    mensaje_usuario = "⚠️ Conductores ocupados. Te atenderá la Central."
-                
-                msg = f"🚖 *PEDIDO DE TAXI*\n👤 {nombre}\n📱 {celular}\n📍 {ref}\n💰 Precio: ${costo}\n🗺️ {mapa_link}{aviso}"
-                link_wa = f"https://wa.me/{dest_numero}?text={urllib.parse.quote(msg)}"
-                
-                st.balloons()
-                st.markdown(f'<div class="precio-box">Total: ${costo}</div>', unsafe_allow_html=True)
-                st.info(mensaje_usuario)
-                st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
+                    # CASO FALLO: Nadie libre o validado (No hay botón de WA)
+                    st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
+                    st.error("❌ **CONDUCTORES OCUPADOS.** En este momento no hay unidades disponibles. Por favor, intente más tarde.")
 
 elif modo == "👮‍♂️ ADMINISTRADOR":
     st.title("👮‍♂️ Panel de Administración")
@@ -129,5 +137,5 @@ elif modo == "👮‍♂️ ADMINISTRADOR":
     if p == PASSWORD_ADMIN:
         st.success("Acceso Correcto")
         st.write("---")
-        st.subheader("Socios Conductores")
-        st.dataframe(cargar_datos("CHOFERES"))
+        st.subheader("Socios Conductores en tiempo real")
+        st.dataframe(cargar_datos("CHOFERES"), use_container_width=True)
