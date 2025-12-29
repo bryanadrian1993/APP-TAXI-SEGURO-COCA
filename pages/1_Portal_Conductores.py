@@ -63,6 +63,7 @@ if st.session_state.usuario_activo:
     user_ape = st.session_state.datos_usuario['Apellido']
     fila_actual = df_fresh[(df_fresh['Nombre'] == user_nom) & (df_fresh['Apellido'] == user_ape)]
     
+    # Referencia por posición de columna para evitar KeyErrors
     km_actuales = float(fila_actual.iloc[0, 16]) if not fila_actual.empty else 0.0
     deuda_actual = float(fila_actual.iloc[0, 17]) if not fila_actual.empty else 0.0
     bloqueado = deuda_actual >= DEUDA_MAXIMA
@@ -76,18 +77,32 @@ if st.session_state.usuario_activo:
             st.markdown(f'''<a href="{LINK_PAYPAL}" target="_blank" style="text-decoration:none;"><div style="background-color:#003087;color:white;padding:12px;border-radius:10px;text-align:center;font-weight:bold;">🔵 PAYPAL</div></a>''', unsafe_allow_html=True)
         with col_p2:
             if st.button("📱 MOSTRAR QR DEUNA", use_container_width=True):
-                # 🛠️ SOLUCIÓN DE RUTA: Busca en la carpeta principal
+                # 🚀 SOLUCIÓN DEFINITIVA DE IMAGEN CON BASE64
                 directorio_actual = os.path.dirname(os.path.abspath(__file__))
                 carpeta_raiz = os.path.dirname(directorio_actual)
-                ruta_qr = os.path.join(carpeta_raiz, "qr_deuna.png")
                 
-                if os.path.exists(ruta_qr):
-                    st.image(ruta_qr, caption=f"Paga a: {NUMERO_DEUNA}")
-                elif os.path.exists("qr_deuna.png"):
-                    st.image("qr_deuna.png", caption=f"Paga a: {NUMERO_DEUNA}")
+                # Intentamos buscar en 3 lugares distintos
+                posibles_rutas = [
+                    os.path.join(carpeta_raiz, "qr_deuna.png"), # Carpeta Principal
+                    "qr_deuna.png",                            # Raíz ejecutable
+                    os.path.join(directorio_actual, "qr_deuna.png") # Dentro de pages
+                ]
+                
+                ruta_final = None
+                for r in posibles_rutas:
+                    if os.path.exists(r):
+                        ruta_final = r
+                        break
+                
+                if ruta_final:
+                    # Leemos la imagen y la convertimos para mostrarla sin errores de ruta
+                    with open(ruta_final, "rb") as f:
+                        data = base64.b64encode(f.read()).decode()
+                    st.markdown(f'<img src="data:image/png;base64,{data}" width="100%">', unsafe_allow_html=True)
+                    st.caption(f"WhatsApp: {NUMERO_DEUNA}")
                 else:
-                    st.error("No se encontró 'qr_deuna.png' en la carpeta.")
-                    st.info("Asegúrate de que el nombre sea exacto.")
+                    st.error("❌ Archivo 'qr_deuna.png' no encontrado.")
+                    st.info(f"Ruta de búsqueda: {carpeta_raiz}")
 
         if st.button("🔄 YA PAGUÉ, REVISAR MI SALDO", type="primary"):
             res = enviar_datos({"accion": "registrar_pago_deuda", "nombre_completo": f"{user_nom} {user_ape}"})
