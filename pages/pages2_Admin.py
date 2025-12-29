@@ -105,7 +105,6 @@ with tab2:
         df_mapa = df_mapa.dropna(subset=['lat', 'lon'])
         
         if not df_mapa.empty:
-            # === 2. MAPA AVANZADO (PyDeck) ===
             st.caption("Los puntos rojos son tus taxis en tiempo real. Pasa el mouse para ver quién es.")
             
             view_state = pdk.ViewState(
@@ -124,9 +123,10 @@ with tab2:
                 pickable=True
             )
 
-            # --- ¡AQUÍ ESTÁ EL CAMBIO PARA QUE PAREZCA GOOGLE MAPS! ---
+            # === AQUÍ ESTÁ EL ARREGLO ===
+            # Usamos un estilo "Positron" (Claro/Calles) que es público y gratuito.
             st.pydeck_chart(pdk.Deck(
-                map_style='mapbox://styles/mapbox/streets-v11', # Estilo "Calles"
+                map_style='https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', 
                 initial_view_state=view_state,
                 layers=[layer],
                 tooltip={"text": "{Conductor}\nActualizado: {Ultima_Actualizacion}"}
