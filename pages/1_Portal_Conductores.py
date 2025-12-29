@@ -9,8 +9,9 @@ from streamlit_js_eval import get_geolocation
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
+# TU URL GENERADA (NO LA CAMBIES)
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_SOPORTE = "taxi-seguro-world@hotmail.com"
 
@@ -35,10 +36,9 @@ def cargar_datos(hoja):
 
 def enviar_datos(datos):
     try:
-        # Si hay imagen, usamos POST (data en el body), sino GET (data en URL)
         if 'imagen_base64' in datos:
             data = urllib.parse.urlencode(datos).encode()
-            req = urllib.request.Request(URL_SCRIPT, data=data) # POST
+            req = urllib.request.Request(URL_SCRIPT, data=data) 
             with urllib.request.urlopen(req) as response:
                 return response.read().decode('utf-8')
         else:
@@ -56,14 +56,23 @@ if st.session_state.usuario_activo:
     user = st.session_state.datos_usuario
     st.success(f"✅ Bienvenido: **{user['Nombre']} {user['Apellido']}**")
     
-    # === SECCIÓN NUEVA: FOTO DE PERFIL ===
+    # === SECCIÓN FOTO DE PERFIL (CON CORRECCIÓN VISUAL) ===
     with st.expander("📸 Mi Foto de Perfil (Obligatorio)", expanded=True):
         col_f1, col_f2 = st.columns([1, 2])
-        foto_actual = str(user.get('FOTO_PENDIENTE', 'SIN_FOTO')) # Usa la columna L del Excel
+        
+        # Leemos la foto
+        foto_actual = "SIN_FOTO"
+        if 'FOTO_PENDIENTE' in user:
+            foto_actual = str(user['FOTO_PENDIENTE'])
         
         with col_f1:
             if "http" in foto_actual:
-                st.image(foto_actual, caption="Tu Foto Actual", width=100)
+                # --- TRUCO MÁGICO PARA VER LA IMAGEN ---
+                # Convertimos el link de "Descarga" en link de "Miniatura Visible"
+                foto_visible = foto_actual.replace("uc?export=view&", "thumbnail?sz=w400&")
+                
+                st.image(foto_visible, caption="Tu Foto Actual", width=120)
+                st.caption("Si no carga, [clic aquí para verla](" + foto_actual + ")")
             else:
                 st.info("Sin foto")
         
@@ -72,7 +81,6 @@ if st.session_state.usuario_activo:
             if foto_subida:
                 if st.button("📤 GUARDAR FOTO"):
                     with st.spinner("Subiendo a la nube..."):
-                        # Convertir imagen a texto Base64
                         bytes_data = foto_subida.getvalue()
                         b64_str = base64.b64encode(bytes_data).decode('utf-8')
                         
@@ -88,6 +96,8 @@ if st.session_state.usuario_activo:
                             nueva_url = res.split("|")[1]
                             st.session_state.datos_usuario['FOTO_PENDIENTE'] = nueva_url
                             st.success("✅ ¡Foto actualizada!")
+                            import time
+                            time.sleep(1)
                             st.rerun()
                         else:
                             st.error(f"Error: {res}")
