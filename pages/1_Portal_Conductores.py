@@ -9,9 +9,9 @@ from streamlit_js_eval import get_geolocation
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN
+# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_SOPORTE = "taxi-seguro-world@hotmail.com"
 
 # --- INICIALIZAR SESIÓN ---
@@ -59,7 +59,7 @@ if st.session_state.usuario_activo:
     # === SECCIÓN NUEVA: FOTO DE PERFIL ===
     with st.expander("📸 Mi Foto de Perfil (Obligatorio)", expanded=True):
         col_f1, col_f2 = st.columns([1, 2])
-        foto_actual = str(user.get('FOTO_PENDIENTE', 'SIN_FOTO'))
+        foto_actual = str(user.get('FOTO_PENDIENTE', 'SIN_FOTO')) # Usa la columna L del Excel
         
         with col_f1:
             if "http" in foto_actual:
@@ -137,7 +137,7 @@ if st.session_state.usuario_activo:
                     st.rerun()
 
 else:
-    # LOGIN / REGISTRO (SIN CAMBIOS)
+    # LOGIN / REGISTRO
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
     with tab1:
         col_L1, col_L2 = st.columns(2)
