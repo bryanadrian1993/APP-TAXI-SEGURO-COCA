@@ -4,6 +4,7 @@ from streamlit_js_eval import get_geolocation
 from datetime import datetime
 import urllib.parse
 import math
+import urllib.request
 import random
 
 # --- CONFIGURACIÓN DE PÁGINA ---
@@ -27,6 +28,7 @@ st.markdown("""
 
 # 🆔 DATOS DE CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxRY1jUw2IFywziKZzKO7FY3OMoLQMfLujcMv7SJlebVE1ydxJnOm574HlikN2Uj0gw/exec"
 NUMERO_ADMIN = "593962384356"
 PASSWORD_ADMIN = "admin123"
 LAT_BASE = -0.466657
@@ -35,33 +37,41 @@ LON_BASE = -76.989635
 # --- FUNCIONES CEREBRALES ---
 def cargar_datos(hoja):
     try:
-        # Evitamos caché para leer datos actualizados del Excel
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={hoja}&cb={cache_buster}"
         return pd.read_csv(url)
     except:
         return pd.DataFrame()
 
+def registrar_viaje_en_sheets(datos):
+    try:
+        params = {
+            "accion": "registrar_pedido",
+            "cliente": datos['cliente'],
+            "telefono_cli": datos['telefono_cli'],
+            "referencia": datos['referencia'],
+            "conductor": datos['conductor'],
+            "telefono_chof": datos['telefono_chof'],
+            "mapa": datos['mapa']
+        }
+        url_final = f"{URL_SCRIPT}?{urllib.parse.urlencode(params)}"
+        with urllib.request.urlopen(url_final) as response:
+            return response.read().decode('utf-8')
+    except Exception as e:
+        return f"Error: {e}"
+
 def obtener_chofer_libre():
     df = cargar_datos("CHOFERES")
     if not df.empty:
-        # Limpieza de columnas
         df['Estado'] = df['Estado'].astype(str).str.strip().str.upper()
-        
-        # Verificamos columna Validado (Columna M)
         if 'Validado' in df.columns:
             df['Validado'] = df['Validado'].astype(str).str.strip().str.upper()
-            
-            # FILTRO: Debe estar LIBRE y Validado con "SI"
             choferes_aptos = df[(df['Estado'] == 'LIBRE') & (df['Validado'] == 'SI')]
-            
             if not choferes_aptos.empty:
-                # Elección aleatoria entre los aptos
                 elegido = choferes_aptos.sample(1).iloc[0]
                 nombre_completo = f"{elegido['Nombre']} {elegido['Apellido']}"
                 telefono = str(elegido['Telefono']).replace(".0", "")
                 return nombre_completo, telefono
-                
     return None, None
 
 def calcular_distancia(lat1, lon1, lat2, lon2):
@@ -80,7 +90,6 @@ if modo == "🚖 PEDIR TAXI":
     st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
     st.divider()
 
-    # PASO 1: UBICACIÓN
     st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
     loc = get_geolocation()
     lat, lon, gps_activo = LAT_BASE, LON_BASE, False
@@ -93,7 +102,6 @@ if modo == "🚖 PEDIR TAXI":
     else:
         st.info("📍 Por favor activa tu GPS para localizarte.")
 
-    # PASO 2: FORMULARIO
     st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
     with st.form("form_pedido"):
         nombre_cli = st.text_input("Nombre del cliente:")
@@ -108,16 +116,26 @@ if modo == "🚖 PEDIR TAXI":
         elif not gps_activo:
             st.warning("⚠️ Esperando señal de GPS...")
         else:
-            # Cálculo de costo
             dist = calcular_distancia(LAT_BASE, LON_BASE, lat, lon)
             costo = round(max(1.50, dist * 0.75), 2)
             
-            with st.spinner("🔄 Buscando unidad disponible y validada..."):
+            with st.spinner("🔄 Buscando unidad disponible y registrando..."):
                 nombre_chof, telefono_chof = obtener_chofer_libre()
                 
-                # REFORMA: Lógica de asignación restrictiva
                 if nombre_chof:
-                    # CASO ÉXITO: Hay chofer libre y validado
+                    # Datos para el registro en Sheets
+                    datos_viaje = {
+                        "cliente": nombre_cli,
+                        "telefono_cli": celular_cli,
+                        "referencia": ref_cli,
+                        "conductor": nombre_chof,
+                        "telefono_chof": telefono_chof,
+                        "mapa": mapa_link
+                    }
+                    
+                    # Ejecutamos el registro en Excel
+                    res_excel = registrar_viaje_en_sheets(datos_viaje)
+                    
                     aviso_ws = f"\n🚖 *CONDUCTOR ASIGNADO: {nombre_chof}*"
                     msg = f"🚖 *PEDIDO DE TAXI*\n👤 {nombre_cli}\n📱 {celular_cli}\n📍 {ref_cli}\n💰 Precio: ${costo}\n🗺️ {mapa_link}{aviso_ws}"
                     link_wa = f"https://wa.me/{telefono_chof}?text={urllib.parse.quote(msg)}"
@@ -126,10 +144,12 @@ if modo == "🚖 PEDIR TAXI":
                     st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
                     st.success(f"✅ ¡Unidad Encontrada! Conductor: **{nombre_chof}**")
                     st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
+                    
+                    if "OK" in res_excel:
+                        st.toast("✅ Viaje registrado en el historial.")
                 else:
-                    # CASO FALLO: Nadie libre o validado (No hay botón de WA)
                     st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
-                    st.error("❌ **CONDUCTORES OCUPADOS.** En este momento no hay unidades disponibles. Por favor, intente más tarde.")
+                    st.error("❌ **CONDUCTORES OCUPADOS.** En este momento no hay unidades disponibles.")
 
 elif modo == "👮‍♂️ ADMINISTRADOR":
     st.title("👮‍♂️ Panel de Administración")
