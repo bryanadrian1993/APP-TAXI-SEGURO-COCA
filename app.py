@@ -28,13 +28,11 @@ st.markdown("""
 
 # 🆔 DATOS DE CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxRY1jUw2IFywziKZzKO7FY3OMoLQMfLujcMv7SJlebVE1ydxJnOm574HlikN2Uj0gw/exec"
-NUMERO_ADMIN = "593962384356"
-PASSWORD_ADMIN = "admin123"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxB7mmTkyTFNoF1Mp19xzdDXqOMDbA8nLemNeDDc1Km3OYs11vF-B1FUpEXGDbgJp3T/exec"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# --- FUNCIONES CEREBRALES ---
+# --- FUNCIONES ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -66,12 +64,13 @@ def obtener_chofer_libre():
         df['Estado'] = df['Estado'].astype(str).str.strip().str.upper()
         if 'Validado' in df.columns:
             df['Validado'] = df['Validado'].astype(str).str.strip().str.upper()
-            choferes_aptos = df[(df['Estado'] == 'LIBRE') & (df['Validado'] == 'SI')]
-            if not choferes_aptos.empty:
-                elegido = choferes_aptos.sample(1).iloc[0]
-                nombre_completo = f"{elegido['Nombre']} {elegido['Apellido']}"
-                telefono = str(elegido['Telefono']).replace(".0", "")
-                return nombre_completo, telefono
+            # Filtro: Libre y Validado
+            aptos = df[(df['Estado'] == 'LIBRE') & (df['Validado'] == 'SI')]
+            if not aptos.empty:
+                elegido = aptos.sample(1).iloc[0]
+                nombre = f"{elegido['Nombre']} {elegido['Apellido']}"
+                tel = str(elegido['Telefono']).replace(".0", "")
+                return nombre, tel
     return None, None
 
 def calcular_distancia(lat1, lon1, lat2, lon2):
@@ -82,80 +81,63 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# --- LÓGICA DE INTERFAZ ---
-modo = st.sidebar.selectbox("Menú Principal:", ["🚖 PEDIR TAXI", "👮‍♂️ ADMINISTRADOR"])
+# --- INTERFAZ DE USUARIO ---
+st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
+st.divider()
 
-if modo == "🚖 PEDIR TAXI":
-    st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
-    st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
-    st.divider()
-
-    st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
-    loc = get_geolocation()
+# GPS
+loc = get_geolocation()
+if loc:
+    lat, lon, gps_activo = loc['coords']['latitude'], loc['coords']['longitude'], True
+    mapa_link = f"https://www.google.com/maps?q={lat},{lon}"
+    st.success("✅ UBICACIÓN DETECTADA")
+else:
     lat, lon, gps_activo = LAT_BASE, LON_BASE, False
     mapa_link = "No detectado"
+    st.info("📍 Por favor, active su GPS.")
 
-    if loc:
-        lat, lon, gps_activo = loc['coords']['latitude'], loc['coords']['longitude'], True
-        mapa_link = f"https://www.google.com/maps?q={lat},{lon}"
-        st.success("✅ GPS ACTIVADO")
+# FORMULARIO
+with st.form("form_pedido"):
+    nombre_cli = st.text_input("Nombre del Cliente:")
+    celular_cli = st.text_input("Celular del Cliente:")
+    ref_cli = st.text_input("Referencia / Dirección:")
+    enviar = st.form_submit_button("💰 COTIZAR VIAJE")
+
+if enviar:
+    if not nombre_cli or not ref_cli:
+        st.error("⚠️ Complete los campos obligatorios.")
     else:
-        st.info("📍 Por favor activa tu GPS para localizarte.")
-
-    st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
-    with st.form("form_pedido"):
-        nombre_cli = st.text_input("Nombre del cliente:")
-        celular_cli = st.text_input("Número de WhatsApp:")
-        ref_cli = st.text_input("Dirección/Referencia exacta:")
-        tipo_veh = st.selectbox("Tipo de unidad:", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
-        enviar = st.form_submit_button("💰 COTIZAR VIAJE")
-
-    if enviar:
-        if not nombre_cli or not ref_cli:
-            st.error("⚠️ Nombre y Referencia son obligatorios.")
-        elif not gps_activo:
-            st.warning("⚠️ Esperando señal de GPS...")
-        else:
-            dist = calcular_distancia(LAT_BASE, LON_BASE, lat, lon)
-            costo = round(max(1.50, dist * 0.75), 2)
+        dist = calcular_distancia(LAT_BASE, LON_BASE, lat, lon)
+        costo = round(max(1.50, dist * 0.75), 2)
+        
+        with st.spinner("🔄 Buscando conductor y registrando..."):
+            nombre_chof, tel_chof = obtener_chofer_libre()
             
-            with st.spinner("🔄 Buscando unidad disponible y registrando..."):
-                nombre_chof, telefono_chof = obtener_chofer_libre()
-                
-                if nombre_chof:
-                    # Datos para el registro en Sheets
-                    datos_viaje = {
-                        "cliente": nombre_cli,
-                        "telefono_cli": celular_cli,
-                        "referencia": ref_cli,
-                        "conductor": nombre_chof,
-                        "telefono_chof": telefono_chof,
-                        "mapa": mapa_link
-                    }
-                    
-                    # Ejecutamos el registro en Excel
-                    res_excel = registrar_viaje_en_sheets(datos_viaje)
-                    
-                    aviso_ws = f"\n🚖 *CONDUCTOR ASIGNADO: {nombre_chof}*"
-                    msg = f"🚖 *PEDIDO DE TAXI*\n👤 {nombre_cli}\n📱 {celular_cli}\n📍 {ref_cli}\n💰 Precio: ${costo}\n🗺️ {mapa_link}{aviso_ws}"
-                    link_wa = f"https://wa.me/{telefono_chof}?text={urllib.parse.quote(msg)}"
-                    
-                    st.balloons()
-                    st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
-                    st.success(f"✅ ¡Unidad Encontrada! Conductor: **{nombre_chof}**")
-                    st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
-                    
-                    if "OK" in res_excel:
-                        st.toast("✅ Viaje registrado en el historial.")
-                else:
-                    st.markdown(f'<div class="precio-box">Total estimado: ${costo}</div>', unsafe_allow_html=True)
-                    st.error("❌ **CONDUCTORES OCUPADOS.** En este momento no hay unidades disponibles.")
+            # Datos para el registro
+            datos_registro = {
+                "cliente": nombre_cli,
+                "telefono_cli": celular_cli,
+                "referencia": ref_cli,
+                "conductor": nombre_chof if nombre_chof else "CENTRAL (OCUPADOS)",
+                "telefono_chof": tel_chof if tel_chof else "N/A",
+                "mapa": mapa_link
+            }
+            
+            # 1. Registrar en la hoja "VIAJES"
+            res_ex = registrar_viaje_en_sheets(datos_registro)
+            
+            # 2. Mostrar resultado al cliente
+            st.markdown(f'<div class="precio-box">Costo estimado: ${costo}</div>', unsafe_allow_html=True)
+            
+            if nombre_chof:
+                st.balloons()
+                st.success(f"✅ Conductor asignado: {nombre_chof}")
+                msg = f"🚖 *PEDIDO DE TAXI*\n👤 Cliente: {nombre_cli}\n📱 Cel: {celular_cli}\n📍 Ref: {ref_cli}\n💰 Precio: ${costo}\n🗺️ Mapa: {mapa_link}"
+                link_wa = f"https://wa.me/{tel_chof}?text={urllib.parse.quote(msg)}"
+                st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
+            else:
+                st.error("❌ Todos nuestros conductores están ocupados. Intente más tarde.")
 
-elif modo == "👮‍♂️ ADMINISTRADOR":
-    st.title("👮‍♂️ Panel de Administración")
-    p = st.text_input("Clave de Acceso:", type="password")
-    if p == PASSWORD_ADMIN:
-        st.success("Acceso Correcto")
-        st.write("---")
-        st.subheader("Socios Conductores en tiempo real")
-        st.dataframe(cargar_datos("CHOFERES"), use_container_width=True)
+            if "OK" in res_ex:
+                st.toast("✅ Viaje anotado en el sistema.")
