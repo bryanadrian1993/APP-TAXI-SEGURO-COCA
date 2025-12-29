@@ -5,15 +5,12 @@ import urllib.request
 import pydeck as pdk
 from datetime import datetime
 
-# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Admin Panel", page_icon="👮‍♂️", layout="wide")
 
-# 🆔 CONEXIÓN (NUEVA URL ACTUALIZADA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 ADMIN_PASSWORD = "admin123"
 
-# --- FUNCIONES ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -30,9 +27,7 @@ def enviar_datos(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-# --- LOGIN ---
-if 'admin_logged_in' not in st.session_state:
-    st.session_state.admin_logged_in = False
+if 'admin_logged_in' not in st.session_state: st.session_state.admin_logged_in = False
 
 if not st.session_state.admin_logged_in:
     st.markdown("<h1 style='text-align: center;'>👮‍♂️ ACCESO RESTRINGIDO</h1>", unsafe_allow_html=True)
@@ -41,11 +36,9 @@ if not st.session_state.admin_logged_in:
         if password == ADMIN_PASSWORD:
             st.session_state.admin_logged_in = True
             st.rerun()
-        else:
-            st.error("⛔ Acceso Denegado")
+        else: st.error("⛔ Acceso Denegado")
     st.stop()
 
-# --- PANEL ---
 st.sidebar.success("✅ Modo Administrador Activo")
 if st.sidebar.button("Cerrar Sesión"):
     st.session_state.admin_logged_in = False
@@ -67,8 +60,6 @@ with tab1:
     st.subheader("Directorio de Conductores")
     if not df_choferes.empty:
         st.dataframe(df_choferes[['Nombre', 'Apellido', 'Telefono', 'Placa', 'Estado', 'Tipo_Vehiculo', 'Pais']], use_container_width=True)
-        st.markdown("---")
-        st.subheader("🚫 Zona de Expulsión")
         lista = df_choferes.apply(lambda x: f"{x['Nombre']} {x['Apellido']}", axis=1).tolist()
         borrar = st.selectbox("Eliminar a:", lista)
         if st.button("🗑️ ELIMINAR", type="primary"):
@@ -81,7 +72,6 @@ with tab1:
                         import time
                         time.sleep(1)
                         st.rerun()
-                    else: st.error("Error al eliminar")
     else: st.info("Sin datos.")
 
 with tab2:
@@ -89,51 +79,22 @@ with tab2:
     if not df_gps.empty:
         df_mapa = df_gps.copy()
         
-        # === 1. LIMPIEZA DE COORDENADAS ===
         def limpiar_coordenada(valor):
             try:
                 s = str(valor).replace(",", "").replace(".", "")
                 num = float(s)
-                while abs(num) > 180: 
-                    num = num / 10
+                while abs(num) > 180: num = num / 10
                 return num
-            except:
-                return None
+            except: return None
 
         df_mapa['lat'] = df_mapa['Latitud'].apply(limpiar_coordenada)
         df_mapa['lon'] = df_mapa['Longitud'].apply(limpiar_coordenada)
         df_mapa = df_mapa.dropna(subset=['lat', 'lon'])
         
         if not df_mapa.empty:
-            st.caption("Los puntos rojos son tus taxis en tiempo real. Pasa el mouse para ver quién es.")
-            
-            view_state = pdk.ViewState(
-                latitude=df_mapa['lat'].mean(),
-                longitude=df_mapa['lon'].mean(),
-                zoom=14,
-                pitch=0
-            )
-
-            layer = pdk.Layer(
-                "ScatterplotLayer",
-                data=df_mapa,
-                get_position='[lon, lat]',
-                get_color='[255, 0, 0, 200]', 
-                get_radius=80, 
-                pickable=True
-            )
-
-            # MAPA GRATUITO Y PÚBLICO
-            st.pydeck_chart(pdk.Deck(
-                map_style='https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', 
-                initial_view_state=view_state,
-                layers=[layer],
-                tooltip={"text": "{Conductor}\nActualizado: {Ultima_Actualizacion}"}
-            ))
-            
-            st.write("Datos técnicos recibidos:")
+            view_state = pdk.ViewState(latitude=df_mapa['lat'].mean(), longitude=df_mapa['lon'].mean(), zoom=14, pitch=0)
+            layer = pdk.Layer("ScatterplotLayer", data=df_mapa, get_position='[lon, lat]', get_color='[255, 0, 0, 200]', get_radius=80, pickable=True)
+            st.pydeck_chart(pdk.Deck(map_style='https://basemaps.cartocdn.com/gl/positron-gl-style/style.json', initial_view_state=view_state, layers=[layer], tooltip={"text": "{Conductor}"}))
             st.dataframe(df_gps.tail(5))
-        else:
-            st.warning("⚠️ Datos GPS inválidos.")
-    else:
-        st.info("Sin señal GPS.")
+        else: st.warning("⚠️ Datos GPS inválidos.")
+    else: st.info("Sin señal GPS.")
