@@ -7,7 +7,7 @@ from datetime import datetime
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
-# 🆔 TUS DATOS DE CONEXIÓN (YA CON TU URL NUEVA)
+# 🆔 TUS DATOS DE CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw9h2Rm1JkZHnL56-TY8SiuPbeGlM5FJc7mQ1zIXYO4jzeEato_XJ0Jl-DzfTJhXjoQ/exec"
 
@@ -17,10 +17,25 @@ if 'usuario_activo' not in st.session_state:
 if 'datos_usuario' not in st.session_state:
     st.session_state.datos_usuario = {}
 
-# --- LISTAS DE OPCIONES ---
-PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "USA"]
-IDIOMAS = ["Español", "English", "Português", "Français"]
-VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"]
+# ==========================================
+# 🌎 LISTAS GLOBALES AMPLIADAS
+# ==========================================
+PAISES = [
+    "Ecuador", "Colombia", "Perú", "México", "España", "Estados Unidos",
+    "Argentina", "Bolivia", "Brasil", "Chile", "Costa Rica", "Cuba",
+    "El Salvador", "Guatemala", "Honduras", "Nicaragua", "Panamá", "Paraguay",
+    "Puerto Rico", "República Dominicana", "Uruguay", "Venezuela",
+    "Canadá", "Italia", "Francia", "Alemania", "Reino Unido", "Portugal",
+    "Rusia", "China", "Japón", "Otro"
+]
+
+IDIOMAS = [
+    "Español", "English", "Português", "Français", "Italiano", 
+    "Deutsch (Alemán)", "Русский (Ruso)", "中文 (Chino)", "العربية (Árabe)", 
+    "Quechua", "Shuar"
+]
+
+VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔", "Moto Entrega 🏍️", "Camión de Carga 🚛"]
 
 # --- FUNCIONES DE CONEXIÓN ---
 def cargar_datos(hoja):
@@ -101,7 +116,7 @@ if st.session_state.usuario_activo:
 else:
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
 
-    # --- PESTAÑA 1: LOGIN (SOLO NOMBRE Y APELLIDO) ---
+    # --- PESTAÑA 1: LOGIN ---
     with tab1:
         st.info("Ingresa tus datos para acceder.")
         
@@ -119,9 +134,7 @@ else:
                     df = cargar_datos("CHOFERES")
                     
                     if not df.empty:
-                        # Limpieza de datos (Mayúsculas y sin espacios)
                         try:
-                            # Aseguramos que existan las columnas en el DataFrame
                             if 'Nombre' in df.columns and 'Apellido' in df.columns and 'Clave' in df.columns:
                                 df['N_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
                                 df['A_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
@@ -131,12 +144,10 @@ else:
                                 u_ape = str(l_ape).strip().upper()
                                 u_pass = str(l_pass).strip()
 
-                                # Buscamos coincidencia
                                 encontrado = df[(df['N_Clean'] == u_nom) & (df['A_Clean'] == u_ape)]
                                 
                                 if not encontrado.empty:
                                     usuario = encontrado.iloc[0]
-                                    # Verificamos contraseña
                                     if str(usuario['P_Clean']) == u_pass:
                                         st.session_state.usuario_activo = True
                                         st.session_state.datos_usuario = usuario.to_dict()
@@ -145,19 +156,19 @@ else:
                                     else:
                                         st.error("❌ Contraseña incorrecta.")
                                 else:
-                                    st.error("❌ Usuario no encontrado. Revisa Nombre y Apellido.")
+                                    st.error("❌ Usuario no encontrado.")
                             else:
-                                st.error("⚠️ El archivo de Excel no tiene las columnas correctas (Nombre, Apellido, Clave).")
+                                st.error("⚠️ Error en base de datos (Columnas).")
                         except Exception as e:
-                            st.error(f"Error procesando datos: {e}")
+                            st.error(f"Error procesando: {e}")
                     else:
-                        st.error("Error conectando con la base de datos.")
+                        st.error("Error conectando con la nube.")
             else:
                 st.warning("⚠️ Llena todos los campos.")
 
-    # --- PESTAÑA 2: REGISTRO (COMPLETO) ---
+    # --- PESTAÑA 2: REGISTRO (GLOBAL) ---
     with tab2:
-        st.markdown("### 📝 Nuevo Registro")
+        st.markdown("### 📝 Registro Global")
         with st.form("reg_form"):
             c1, c2 = st.columns(2)
             r_nom = c1.text_input("Nombres *")
@@ -165,10 +176,12 @@ else:
             
             c3, c4 = st.columns(2)
             r_ced = c3.text_input("Cédula/ID *")
-            r_pais = c4.selectbox("País *", PAISES)
+            # AQUÍ AHORA SALDRÁN TODOS LOS PAÍSES
+            r_pais = c4.selectbox("País de Operación *", PAISES)
             
             c5, c6 = st.columns(2)
             r_dir = c5.text_input("Dirección *")
+            # AQUÍ AHORA SALDRÁN TODOS LOS IDIOMAS
             r_idioma = c6.selectbox("Idioma *", IDIOMAS)
             
             r_telf = st.text_input("WhatsApp (con código país) *")
@@ -187,7 +200,7 @@ else:
                 elif r_pass1 != r_pass2:
                     st.error("⚠️ Las contraseñas no coinciden.")
                 else:
-                    with st.spinner("Creando cuenta..."):
+                    with st.spinner("Creando cuenta global..."):
                         datos = {
                             "accion": "registrar_conductor",
                             "nombre": r_nom, "apellido": r_ape,
@@ -199,7 +212,8 @@ else:
                         }
                         res = enviar_datos(datos)
                         if "REGISTRO_EXITOSO" in res:
-                            st.success("🎉 ¡Cuenta Creada! Ve a la pestaña INGRESAR.")
+                            st.success(f"🎉 ¡Bienvenido! Configurado para {r_pais} en {r_idioma}.")
+                            st.info("Ve a la pestaña INGRESAR para comenzar.")
                             st.balloons()
                         else:
                             st.error("Error de conexión.")
