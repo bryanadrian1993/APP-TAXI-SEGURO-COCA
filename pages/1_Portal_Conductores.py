@@ -11,7 +11,13 @@ st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="ce
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyzzpVm-dlOu8ZGbPUGfOnq-joRYoV-wXuckOvgsmKRAbRZaJQHJ6k9uxfA4pU9EK0d/exec"
 
-# --- LISTAS GLOBALES ---
+# --- INICIALIZAR SESIÓN (Para que no se salga al dar clic) ---
+if 'usuario_activo' not in st.session_state:
+    st.session_state.usuario_activo = None
+if 'datos_usuario' not in st.session_state:
+    st.session_state.datos_usuario = {}
+
+# --- LISTAS ---
 PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "USA"]
 IDIOMAS = ["Español", "English", "Português", "Français"]
 VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"]
@@ -32,148 +38,141 @@ def enviar_datos(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-# --- TÍTULO ---
+# --- FUNCIÓN ESPECIAL PARA CAMBIAR ESTADO ---
+def cambiar_estado_nube(nombre, apellido, nuevo_estado):
+    datos = {
+        "accion": "actualizar_estado", # OJO: Debes agregar esto a tu Script de Google
+        "nombre": nombre,
+        "apellido": apellido,
+        "estado": nuevo_estado
+    }
+    return enviar_datos(datos)
+
+# --- INTERFAZ PRINCIPAL ---
 st.title("🚖 Portal de Socios")
 
-# === CREAMOS DOS PESTAÑAS ===
-tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
+# Si ya está logueado, mostramos DIRECTAMENTE el Panel de Control
+if st.session_state.usuario_activo:
+    user = st.session_state.datos_usuario
+    st.success(f"✅ Conductor Activo: {user['Nombre']} {user['Apellido']}")
+    
+    st.markdown("---")
+    st.subheader(f"🚦 PANEL DE CONTROL - {user['Tipo_Vehiculo']}")
+    
+    # BOTONES DE ESTADO (LO QUE PEDISTE)
+    col_btn1, col_btn2 = st.columns(2)
+    
+    with col_btn1:
+        if st.button("🟢 ESTOY LIBRE", use_container_width=True):
+            with st.spinner("Actualizando a LIBRE..."):
+                # Enviamos la orden a Google Sheets
+                cambiar_estado_nube(user['Nombre'], user['Apellido'], "LIBRE")
+                st.toast("✅ ¡Ahora estás visible para clientes!")
+                st.session_state.datos_usuario['Estado'] = "LIBRE" # Actualizamos visualmente
+    
+    with col_btn2:
+        if st.button("🔴 ESTOY OCUPADO", use_container_width=True):
+            with st.spinner("Actualizando a OCUPADO..."):
+                # Enviamos la orden a Google Sheets
+                cambiar_estado_nube(user['Nombre'], user['Apellido'], "OCUPADO")
+                st.toast("⛔ Te has puesto como Ocupado.")
+                st.session_state.datos_usuario['Estado'] = "OCUPADO" # Actualizamos visualmente
 
-# ==========================================
-# PESTAÑA 1: INICIAR SESIÓN (CORREGIDO: NOMBRE Y APELLIDO)
-# ==========================================
-with tab1:
-    st.markdown("### Ingresa a tu Panel")
-    st.info("Ingresa con el Nombre y Apellido exactos de tu registro.")
+    # INFORMACIÓN DE SALDO
+    st.info(f"💰 Tu Saldo Pendiente: ${user.get('SALDO', 0)}")
     
-    col_log1, col_log2 = st.columns(2)
-    with col_log1:
-        login_nombre = st.text_input("Tu Nombre", key="log_nom")
-    with col_log2:
-        login_apellido = st.text_input("Tu Apellido", key="log_ape")
-        
-    login_clave = st.text_input("Tu Contraseña", type="password", key="log_pass")
-    
-    if st.button("ENTRAR AL SISTEMA", type="primary"):
-        with st.spinner("Verificando credenciales..."):
-            df = cargar_datos("CHOFERES")
-            
-            if not df.empty:
-                # 1. Limpiamos los datos para comparar (Todo a Mayúsculas y sin espacios extra)
-                # Datos del Excel
-                df['Nombre_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
-                df['Apellido_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
-                df['Clave_Clean'] = df['Clave'].astype(str).str.strip()
-                
-                # Datos ingresados por el usuario
-                input_nom = str(login_nombre).strip().upper()
-                input_ape = str(login_apellido).strip().upper()
-                input_pass = str(login_clave).strip()
-                
-                # 2. Buscamos coincidencia exacta de Nombre y Apellido
-                usuario_encontrado = df[
-                    (df['Nombre_Clean'] == input_nom) & 
-                    (df['Apellido_Clean'] == input_ape)
-                ]
-                
-                if not usuario_encontrado.empty:
-                    # El usuario existe, ahora verificamos la clave
-                    dato_usuario = usuario_encontrado.iloc[0]
-                    clave_real = dato_usuario['Clave_Clean']
-                    
-                    if input_pass == clave_real:
-                        st.balloons()
-                        st.success(f"✅ ¡Bienvenido, {dato_usuario['Nombre']}!")
+    st.markdown("---")
+    if st.button("Cerrar Sesión"):
+        st.session_state.usuario_activo = None
+        st.session_state.datos_usuario = {}
+        st.rerun()
+
+else:
+    # SI NO ESTÁ LOGUEADO, MOSTRAMOS EL LOGIN/REGISTRO
+    tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
+
+    # ==========================================
+    # PESTAÑA 1: LOGIN (NOMBRE Y APELLIDO)
+    # ==========================================
+    with tab1:
+        st.info("Ingresa tus datos para acceder al panel.")
+        c1, c2 = st.columns(2)
+        with c1:
+            l_nom = st.text_input("Nombre", key="log_n")
+        with c2:
+            l_ape = st.text_input("Apellido", key="log_a")
+        l_pass = st.text_input("Contraseña", type="password", key="log_p")
+
+        if st.button("ENTRAR", type="primary"):
+            if l_nom and l_ape and l_pass:
+                with st.spinner("Verificando..."):
+                    df = cargar_datos("CHOFERES")
+                    if not df.empty:
+                        # Limpieza para comparar
+                        df['N_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
+                        df['A_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
+                        df['P_Clean'] = df['Clave'].astype(str).str.strip()
                         
-                        # --- PANEL DE CONTROL ---
-                        st.divider()
-                        st.subheader(f"🎛️ Panel de Control - {dato_usuario['Tipo_Vehiculo']}")
+                        u_nom = str(l_nom).strip().upper()
+                        u_ape = str(l_ape).strip().upper()
+                        u_pass = str(l_pass).strip()
+
+                        found = df[(df['N_Clean'] == u_nom) & (df['A_Clean'] == u_ape)]
                         
-                        col_estado, col_saldo = st.columns(2)
-                        
-                        with col_estado:
-                            estado_actual = dato_usuario['Estado']
-                            st.metric("Tu Estado", estado_actual)
-                            
-                            # Botones de Acción (Simulados por ahora)
-                            if estado_actual == "LIBRE":
-                                st.button("🔴 PONERME OCUPADO")
+                        if not found.empty:
+                            usuario = found.iloc[0]
+                            if str(usuario['P_Clean']) == u_pass:
+                                # ¡LOGIN EXITOSO! GUARDAMOS EN SESIÓN
+                                st.session_state.usuario_activo = True
+                                st.session_state.datos_usuario = usuario.to_dict()
+                                st.rerun() # Recargamos para mostrar el panel
                             else:
-                                st.button("🟢 PONERME LIBRE")
-                                    
-                        with col_saldo:
-                            st.metric("Saldo a Pagar", f"${dato_usuario['SALDO']}")
-                            if float(dato_usuario['SALDO']) > 5:
-                                st.error("⚠️ Tienes saldo pendiente. Paga para recibir pedidos.")
-                            else:
-                                st.info("Estas al día con tus pagos.")
-                            
+                                st.error("❌ Contraseña incorrecta.")
+                        else:
+                            st.error("❌ Usuario no encontrado.")
                     else:
-                        st.error("❌ Contraseña incorrecta.")
-                else:
-                    st.error("❌ No encontramos un conductor con ese Nombre y Apellido.")
-                    st.warning("Verifica si escribiste bien o si te registraste con otro nombre.")
+                        st.error("Error de conexión.")
             else:
-                st.error("Error de conexión con la base de datos.")
+                st.warning("Llena todos los campos.")
 
-# ==========================================
-# PESTAÑA 2: REGISTRO (SIN CAMBIOS)
-# ==========================================
-with tab2:
-    st.markdown("### 📝 Registro Oficial de Socio")
-    
-    with st.form("form_registro_nuevo"):
-        st.subheader("👤 Datos Personales")
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            nombre = st.text_input("Nombres *")
-            cedula = st.text_input("Cédula / DNI *")
-            pais = st.selectbox("País de Operación *", PAISES)
-            direccion = st.text_input("Dirección Domiciliaria *")
+    # ==========================================
+    # PESTAÑA 2: REGISTRO (COMPLETO)
+    # ==========================================
+    with tab2:
+        st.markdown("### 📝 Nuevo Registro")
+        with st.form("form_reg"):
+            c1, c2 = st.columns(2)
+            r_nom = c1.text_input("Nombre *")
+            r_ape = c2.text_input("Apellido *")
             
-        with col2:
-            apellido = st.text_input("Apellidos *")
-            email = st.text_input("Correo Electrónico (Opcional)")
-            idioma = st.selectbox("Idioma de preferencia *", IDIOMAS)
-            telefono = st.text_input("WhatsApp (Ej: 593...) *")
-
-        st.markdown("---")
-        st.subheader("🚘 Datos del Vehículo y Seguridad")
-        col3, col4 = st.columns(2)
-        
-        with col3:
-            placa = st.text_input("Placa del Vehículo *")
-            tipo_veh = st.selectbox("Tipo de Vehículo *", VEHICULOS)
+            c3, c4 = st.columns(2)
+            r_ced = c3.text_input("Cédula *")
+            r_tel = c4.text_input("WhatsApp *")
             
-        with col4:
-            clave = st.text_input("Crea una Contraseña *", type="password")
-            confirm_clave = st.text_input("Confirma la Contraseña *", type="password")
+            c5, c6 = st.columns(2)
+            r_pla = c5.text_input("Placa *")
+            r_veh = c6.selectbox("Vehículo", VEHICULOS)
+            
+            r_pais = st.selectbox("País", PAISES)
+            r_idioma = st.selectbox("Idioma", IDIOMAS)
+            r_dir = st.text_input("Dirección")
+            r_pass = st.text_input("Crear Clave *", type="password")
 
-        st.caption("Al registrarte aceptas los términos y condiciones.")
-        
-        enviar = st.form_submit_button("✅ CREAR CUENTA Y TRABAJAR")
-
-        if enviar:
-            if not (nombre and apellido and cedula and telefono and placa and clave):
-                st.error("⚠️ Por favor llena los campos obligatorios (*).")
-            elif clave != confirm_clave:
-                st.error("⚠️ Las contraseñas no coinciden.")
-            else:
-                with st.spinner("Registrando en el sistema..."):
+            if st.form_submit_button("REGISTRARSE"):
+                if r_nom and r_ape and r_ced and r_tel and r_pla and r_pass:
                     datos = {
                         "accion": "registrar_conductor",
-                        "nombre": nombre, "apellido": apellido,
-                        "cedula": cedula, "email": email,
-                        "direccion": direccion, "telefono": telefono,
-                        "placa": placa, "clave": clave,
-                        "pais": pais, "idioma": idioma, "tipo_veh": tipo_veh
+                        "nombre": r_nom, "apellido": r_ape,
+                        "cedula": r_ced, "telefono": r_tel,
+                        "placa": r_pla, "tipo_veh": r_veh,
+                        "pais": r_pais, "idioma": r_idioma,
+                        "direccion": r_dir, "clave": r_pass,
+                        "email": ""
                     }
-                    
-                    respuesta = enviar_datos(datos)
-                    
-                    if "REGISTRO_EXITOSO" in respuesta:
-                        st.balloons()
-                        st.success("🎉 ¡REGISTRO EXITOSO!")
-                        st.info("Ve a la pestaña 'INGRESAR' para entrar.")
+                    res = enviar_datos(datos)
+                    if "REGISTRO_EXITOSO" in res:
+                        st.success("✅ Cuenta creada. Ahora INGRESA en la otra pestaña.")
                     else:
-                        st.error(f"Error de conexión: {respuesta}")
+                        st.error("Error de conexión.")
+                else:
+                    st.warning("Faltan datos obligatorios.")
