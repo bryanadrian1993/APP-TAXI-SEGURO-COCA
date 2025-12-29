@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import urllib.parse
 import urllib.request
-import pydeck as pdk  # <--- NUEVA LIBRERÍA PARA MAPAS PRO
+import pydeck as pdk
 from datetime import datetime
 
 # --- CONFIGURACIÓN ---
@@ -94,7 +94,6 @@ with tab2:
             try:
                 s = str(valor).replace(",", "").replace(".", "")
                 num = float(s)
-                # Reducimos el número hasta que sea una coordenada lógica (entre -180 y 180)
                 while abs(num) > 180: 
                     num = num / 10
                 return num
@@ -120,14 +119,14 @@ with tab2:
                 "ScatterplotLayer",
                 data=df_mapa,
                 get_position='[lon, lat]',
-                get_color='[255, 0, 0, 200]', # Color Rojo
-                get_radius=80, # Tamaño del punto (metros)
+                get_color='[255, 0, 0, 200]', 
+                get_radius=80, 
                 pickable=True
             )
 
-            # Dibujamos el mapa forzando el estilo 'light' (claro/calles)
+            # --- ¡AQUÍ ESTÁ EL CAMBIO PARA QUE PAREZCA GOOGLE MAPS! ---
             st.pydeck_chart(pdk.Deck(
-                map_style=None, 
+                map_style='mapbox://styles/mapbox/streets-v11', # Estilo "Calles"
                 initial_view_state=view_state,
                 layers=[layer],
                 tooltip={"text": "{Conductor}\nActualizado: {Ultima_Actualizacion}"}
