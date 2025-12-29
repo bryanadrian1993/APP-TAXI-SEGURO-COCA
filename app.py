@@ -9,14 +9,14 @@ import random
 # --- CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN (TU URL NUEVA)
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS (TU DISEÑO ORIGINAL + ESTILO PARA EL PIE DE PÁGINA)
+# 🎨 ESTILOS (TU DISEÑO ORIGINAL INTACTO)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -26,7 +26,7 @@ st.markdown("""
     .wa-btn { background-color: #25D366; color: white !important; padding: 15px; border-radius: 10px; text-align: center; display: block; text-decoration: none; font-weight: bold; font-size: 20px; margin-top: 20px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); }
     .id-badge { background-color: #F0F2F6; padding: 5px 15px; border-radius: 20px; border: 1px solid #CCC; font-weight: bold; color: #555; display: inline-block; margin-bottom: 10px; }
     
-    /* ESTILO NUEVO SOLO PARA EL PIE DE PÁGINA */
+    /* PIE DE PÁGINA (SOLO ESTÉTICA) */
     .footer { text-align: center; color: #888; font-size: 14px; margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; }
     .footer a { color: #E91E63; text-decoration: none; font-weight: bold; }
     </style>
@@ -57,7 +57,7 @@ def obtener_chofer_libre():
             return f"{el['Nombre']} {el['Apellido']}", str(el['Telefono']).replace(".0", "")
     return None, None
 
-# --- INTERFAZ CLIENTE (INTACTA) ---
+# --- INTERFAZ CLIENTE ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
 st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
@@ -107,11 +107,12 @@ if enviar:
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
             else: st.error("❌ No hay conductores 'LIBRES' ahora.")
 
-# --- AQUÍ ESTÁ LO ÚNICO NUEVO (EL PIE DE PÁGINA) ---
+# --- PIE DE PÁGINA (FIX: target="_self" para que no abra pantalla blanca) ---
+st.markdown("---")
 st.markdown(f"""
     <div class="footer">
         <p>¿Necesitas ayuda o quieres reportar algo?</p>
-        <p>📧 Contacto: <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p>
+        <p>📧 Contacto: <a href="mailto:{EMAIL_CONTACTO}" target="_self">{EMAIL_CONTACTO}</a></p>
         <p>© 2025 Taxi Seguro Global</p>
     </div>
 """, unsafe_allow_html=True)
