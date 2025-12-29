@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import urllib.parse
 import urllib.request
+import pydeck as pdk  # <--- NUEVA LIBRERÍA PARA MAPAS PRO
 from datetime import datetime
 
 # --- CONFIGURACIÓN ---
@@ -60,7 +61,7 @@ col1.metric("Total Socios", len(df_choferes) if not df_choferes.empty else 0)
 col2.metric("Socios Activos", len(df_choferes[df_choferes['Estado'] == 'LIBRE']) if not df_choferes.empty and 'Estado' in df_choferes.columns else 0)
 col3.metric("Ubicaciones GPS", len(df_gps) if not df_gps.empty else 0)
 
-tab1, tab2 = st.tabs(["📋 GESTIÓN", "🗺️ MAPA"])
+tab1, tab2 = st.tabs(["📋 GESTIÓN", "🗺️ MAPA DE FLOTA"])
 
 with tab1:
     st.subheader("Directorio de Conductores")
@@ -88,33 +89,53 @@ with tab2:
     if not df_gps.empty:
         df_mapa = df_gps.copy()
         
-        # === LIMPIEZA INTELIGENTE DE COORDENADAS ===
+        # === 1. LIMPIEZA DE COORDENADAS ===
         def limpiar_coordenada(valor):
             try:
-                # 1. Convertir a string y quitar todo lo que no sea número o signo menos
                 s = str(valor).replace(",", "").replace(".", "")
-                # 2. Convertir a numero entero puro (ej: -6684672)
                 num = float(s)
-                # 3. Si el número es muy grande (fuera del rango real GPS), lo dividimos
-                # El rango de latitud es -90 a 90. Si es mayor, es que le faltan decimales.
+                # Reducimos el número hasta que sea una coordenada lógica (entre -180 y 180)
                 while abs(num) > 180: 
                     num = num / 10
                 return num
             except:
                 return None
 
-        # Aplicamos la limpieza
         df_mapa['lat'] = df_mapa['Latitud'].apply(limpiar_coordenada)
         df_mapa['lon'] = df_mapa['Longitud'].apply(limpiar_coordenada)
-        
-        # Eliminamos filas inválidas
         df_mapa = df_mapa.dropna(subset=['lat', 'lon'])
         
         if not df_mapa.empty:
-            st.map(df_mapa[['lat', 'lon']], zoom=14)
-            st.caption("Ubicaciones en tiempo real:")
+            # === 2. MAPA AVANZADO (PyDeck) ===
+            st.caption("Los puntos rojos son tus taxis en tiempo real. Pasa el mouse para ver quién es.")
+            
+            view_state = pdk.ViewState(
+                latitude=df_mapa['lat'].mean(),
+                longitude=df_mapa['lon'].mean(),
+                zoom=14,
+                pitch=0
+            )
+
+            layer = pdk.Layer(
+                "ScatterplotLayer",
+                data=df_mapa,
+                get_position='[lon, lat]',
+                get_color='[255, 0, 0, 200]', # Color Rojo
+                get_radius=80, # Tamaño del punto (metros)
+                pickable=True
+            )
+
+            # Dibujamos el mapa forzando el estilo 'light' (claro/calles)
+            st.pydeck_chart(pdk.Deck(
+                map_style=None, 
+                initial_view_state=view_state,
+                layers=[layer],
+                tooltip={"text": "{Conductor}\nActualizado: {Ultima_Actualizacion}"}
+            ))
+            
+            st.write("Datos técnicos recibidos:")
             st.dataframe(df_gps.tail(5))
         else:
-            st.warning("⚠️ No se pudieron procesar las coordenadas. Revisa el formato en Excel.")
+            st.warning("⚠️ Datos GPS inválidos.")
     else:
         st.info("Sin señal GPS.")
