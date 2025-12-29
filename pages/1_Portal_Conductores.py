@@ -6,18 +6,23 @@ import base64
 from datetime import datetime
 from streamlit_js_eval import get_geolocation
 
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
+# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 
+# --- INICIALIZAR SESIÓN ---
 if 'usuario_activo' not in st.session_state: st.session_state.usuario_activo = False
 if 'datos_usuario' not in st.session_state: st.session_state.datos_usuario = {}
 
-PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "Estados Unidos", "Otro"]
+# --- LISTAS ---
+PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "Estados Unidos", "Argentina", "Brasil", "Chile", "Otro"]
 IDIOMAS = ["Español", "English", "Português", "Français", "Italiano", "Deutsch", "Otro"]
 VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔", "Moto Entrega 🏍️"]
 
+# --- FUNCIONES ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -39,12 +44,15 @@ def enviar_datos(datos):
                 return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
+# --- INTERFAZ ---
 st.title("🚖 Portal de Socios")
 
+# ESCENARIO 1: DENTRO DEL PANEL
 if st.session_state.usuario_activo:
     user = st.session_state.datos_usuario
     st.success(f"✅ Bienvenido: **{user['Nombre']} {user['Apellido']}**")
     
+    # === FOTO DE PERFIL ===
     with st.expander("📸 Mi Foto de Perfil (Obligatorio)", expanded=True):
         col_f1, col_f2 = st.columns([1, 2])
         foto_actual = "SIN_FOTO"
@@ -63,6 +71,7 @@ if st.session_state.usuario_activo:
                     with st.spinner("Subiendo a la nube..."):
                         bytes_data = foto_subida.getvalue()
                         b64_str = base64.b64encode(bytes_data).decode('utf-8')
+                        
                         res = enviar_datos({
                             "accion": "subir_foto_perfil",
                             "nombre_chofer": user['Nombre'],
@@ -70,6 +79,7 @@ if st.session_state.usuario_activo:
                             "nombre_archivo": f"foto_{user['Nombre']}.jpg",
                             "imagen_base64": b64_str
                         })
+                        
                         if "FOTO_OK" in res:
                             nueva_url = res.split("|")[1]
                             st.session_state.datos_usuario['FOTO_PENDIENTE'] = nueva_url
@@ -87,7 +97,11 @@ if st.session_state.usuario_activo:
         if loc_chofer:
             lat = loc_chofer['coords']['latitude']
             lon = loc_chofer['coords']['longitude']
-            enviar_datos({"accion": "actualizar_gps_chofer", "conductor": f"{user['Nombre']} {user['Apellido']}", "lat": lat, "lon": lon})
+            enviar_datos({
+                "accion": "actualizar_gps_chofer",
+                "conductor": f"{user['Nombre']} {user['Apellido']}",
+                "lat": lat, "lon": lon
+            })
             st.caption(f"📡 Señal GPS Activa")
 
     c1, c2 = st.columns(2)
@@ -110,6 +124,7 @@ if st.session_state.usuario_activo:
             st.rerun()
 
 else:
+    # LOGIN / REGISTRO
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
     with tab1:
         col_L1, col_L2 = st.columns(2)
@@ -131,5 +146,49 @@ else:
                             else: st.error("❌ Contraseña incorrecta.")
                         else: st.error("❌ Usuario no encontrado.")
             else: st.warning("Llena todos los campos.")
+            
+    # === AQUÍ ESTÁ EL FORMULARIO RESTAURADO ===
     with tab2:
-        st.info("Para registrarte, contacta al administrador.")
+        with st.form("reg_form"):
+            c1, c2 = st.columns(2)
+            r_nom = c1.text_input("Nombres *")
+            r_ape = c2.text_input("Apellidos *")
+            c3, c4 = st.columns(2)
+            r_ced = c3.text_input("Cédula/ID *")
+            r_pais = c4.selectbox("País *", PAISES)
+            c5, c6 = st.columns(2)
+            r_dir = c5.text_input("Dirección *")
+            r_email = c6.text_input("Email *")
+            c7, c8 = st.columns(2)
+            r_idioma = c7.selectbox("Idioma *", IDIOMAS)
+            r_telf = c8.text_input("WhatsApp (Sin código de país) *")
+            c9, c10 = st.columns(2)
+            r_pla = c9.text_input("Placa *")
+            r_veh = c10.selectbox("Vehículo *", VEHICULOS)
+            r_pass1 = st.text_input("Clave *", type="password")
+            r_pass2 = st.text_input("Confirmar Clave *", type="password")
+            
+            if st.form_submit_button("✅ REGISTRARME"):
+                if r_nom and r_email and r_pass1 == r_pass2:
+                    # Limpiamos el número de whatsapp del chofer antes de enviarlo
+                    # Asumimos que si no puso código, es de su país. 
+                    # Por simplicidad aquí lo mandamos directo y el cliente (app.py) o el admin lo corregirán si hace falta.
+                    datos = {
+                        "accion": "registrar_conductor", 
+                        "nombre": r_nom, 
+                        "apellido": r_ape, 
+                        "cedula": r_ced, 
+                        "telefono": r_telf, 
+                        "placa": r_pla, 
+                        "tipo_veh": r_veh, 
+                        "pais": r_pais, 
+                        "idioma": r_idioma, 
+                        "direccion": r_dir, 
+                        "clave": r_pass1, 
+                        "email": r_email
+                    }
+                    res = enviar_datos(datos)
+                    if "REGISTRO_EXITOSO" in res: st.success("¡Cuenta Creada! Ahora puedes ingresar.")
+                    else: st.error("Error al registrar.")
+                else:
+                    st.warning("Verifica que las claves coincidan y llenes los datos.")
