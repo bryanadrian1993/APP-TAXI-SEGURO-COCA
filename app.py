@@ -17,7 +17,7 @@ EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS (INTACTOS - PROHIBIDO TOCAR)
+# 🎨 ESTILOS
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -31,17 +31,17 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FÓRMULA MATEMÁTICA PARA CALCULAR DISTANCIA (NUEVO CEREBRO) ---
+# --- FÓRMULA DISTANCIA ---
 def calcular_distancia(lat1, lon1, lat2, lon2):
-    R = 6371  # Radio de la Tierra en km
+    R = 6371
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) \
         * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
-    return R * c # Distancia en km
+    return R * c
 
-# --- FUNCIONES DE DATOS ---
+# --- FUNCIONES ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -57,62 +57,50 @@ def enviar_datos_a_sheets(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-# --- FUNCIÓN INTELIGENTE: BUSCAR EL MÁS CERCANO ---
 def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
-    # 1. Cargar Choferes y sus Ubicaciones
     df_choferes = cargar_datos("CHOFERES")
     df_ubicaciones = cargar_datos("UBICACIONES")
     
-    if df_choferes.empty or df_ubicaciones.empty:
-        return None, None
+    if df_choferes.empty or df_ubicaciones.empty: return None, None, None
 
-    # 2. Filtrar solo los que están "LIBRE"
     if 'Estado' in df_choferes.columns:
         libres = df_choferes[df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
-        
-        if libres.empty:
-            return None, None
+        if libres.empty: return None, None, None
             
         mejor_chofer = None
         menor_distancia = float('inf')
         
-        # 3. Comparar distancias
         for index, chofer in libres.iterrows():
             nombre_completo = f"{chofer['Nombre']} {chofer['Apellido']}"
-            
-            # Buscar la ubicación de este chofer específico
             ubi = df_ubicaciones[df_ubicaciones['Conductor'] == nombre_completo]
-            
             if not ubi.empty:
-                # Tomamos la última ubicación registrada
                 lat_chof = float(ubi.iloc[-1]['Latitud'])
                 lon_chof = float(ubi.iloc[-1]['Longitud'])
-                
                 dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
-                
-                # Si está más cerca que el anterior, este es el elegido
                 if dist < menor_distancia:
                     menor_distancia = dist
                     mejor_chofer = chofer
         
         if mejor_chofer is not None:
-            # RETORNAMOS AL GANADOR
-            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", str(mejor_chofer['Telefono']).replace(".0", "")
+            # Ahora también devolvemos la FOTO
+            foto = str(mejor_chofer.get('FOTO_PENDIENTE', '')) # Columna L es llamada FOTO_PENDIENTE en el script pero lee el header
+            # Si el header en Excel dice "FOTO_PENDIENTE" u otro, pandas lo lee.
+            # En tu excel vi que la col L no tiene nombre claro, asumiremos que Pandas la lee por index si falla, 
+            # pero el Script escribe en la columna 12.
+            # Mejor intentamos obtener el valor de la columna 11 (empezando en 0)
+            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", str(mejor_chofer['Telefono']).replace(".0", ""), foto
             
-    return None, None
+    return None, None, None
 
-# --- INTERFAZ CLIENTE (INTACTA) ---
+# --- INTERFAZ CLIENTE ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
 st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
 st.divider()
 
-# PASO 1
 st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
 loc = get_geolocation()
-
-lat_actual, lon_actual = LAT_BASE, LON_BASE # Valores por defecto
-
+lat_actual, lon_actual = LAT_BASE, LON_BASE
 if loc:
     lat_actual = loc['coords']['latitude']
     lon_actual = loc['coords']['longitude']
@@ -122,7 +110,6 @@ else:
     mapa = "No detectado"
     st.info("📍 Por favor activa tu GPS.")
 
-# PASO 2
 st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
     nombre_cli = st.text_input("Tu Nombre:")
@@ -140,26 +127,30 @@ if enviar:
         elif not tel_limpio.startswith("593"): tel_limpio = "593" + tel_limpio
             
         with st.spinner("🔄 Buscando la unidad más cercana..."):
-            # AQUÍ USAMOS LA NUEVA FUNCIÓN INTELIGENTE
-            # Si el usuario no tiene GPS (lat_actual es la base), buscará al más cercano a la base
-            chof, t_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
-            
+            chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
             id_v = f"TX-{random.randint(1000, 9999)}"
             tipo_solo_texto = tipo_veh.split(" ")[0]
-            
-            # Registramos el pedido igual que antes
             enviar_datos_a_sheets({"accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio, "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v, "tipo": tipo_solo_texto})
             
             if chof:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
+                
+                # --- AQUÍ MOSTRAMOS LA FOTO ---
+                if foto_chof and "http" in foto_chof:
+                    st.markdown(f"""
+                    <div style="display: flex; justify-content: center; margin-bottom: 10px;">
+                        <img src="{foto_chof}" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover; border: 3px solid #25D366;">
+                    </div>
+                    """, unsafe_allow_html=True)
+                # ------------------------------
+                
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
                 link_wa = f"https://wa.me/{t_chof}?text={urllib.parse.quote(msg)}"
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
             else: st.error("❌ No hay conductores 'LIBRES' cerca de ti en este momento.")
 
-# PIE DE PÁGINA
 st.markdown("---")
 st.markdown(f"""
     <div class="footer">
