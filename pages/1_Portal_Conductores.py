@@ -74,6 +74,24 @@ if st.session_state.usuario_activo:
 
     st.success(f"✅ Socio: **{user_nom} {user_ape}**")
 
+    # === SECCIÓN DE FOTO DE PERFIL ===
+    with st.expander("📸 Mi Foto de Perfil"):
+        foto_actual = str(fila_actual.iloc[0]['FOTO_PENDIENTE']) if not fila_actual.empty else "SIN_FOTO"
+        if "http" in foto_actual:
+            st.image(foto_actual, width=150)
+        
+        foto_nueva = st.file_uploader("Actualizar Foto", type=["jpg", "png", "jpeg"])
+        if foto_nueva and st.button("📤 Guardar Nueva Foto"):
+            b64 = base64.b64encode(foto_nueva.read()).decode()
+            res = enviar_datos({
+                "accion": "subir_foto_perfil",
+                "nombre_chofer": user_nom,
+                "apellido_chofer": user_ape,
+                "imagen_base64": b64,
+                "nombre_archivo": f"{user_nom}_{user_ape}.png"
+            })
+            st.success("Foto enviada a revisión.")
+
     if bloqueado:
         st.error(f"⛔ CUENTA BLOQUEADA POR DEUDA: ${deuda_actual:.2f}")
         col_p1, col_p2 = st.columns(2)
@@ -81,13 +99,15 @@ if st.session_state.usuario_activo:
             st.markdown(f'''<a href="{LINK_PAYPAL}" target="_blank" style="text-decoration:none;"><div style="background-color:#003087;color:white;padding:12px;border-radius:10px;text-align:center;font-weight:bold;">🔵 PAYPAL</div></a>''', unsafe_allow_html=True)
         with col_p2:
             if st.button("📱 MOSTRAR QR DEUNA", use_container_width=True):
-                try: st.image("qr_deuna.png", caption=f"WhatsApp: {NUMERO_DEUNA}")
-                except: st.error("No se encontró 'qr_deuna.png' en la carpeta.")
+                try: 
+                    st.image("qr_deuna.png", caption=f"Pagar a: {NUMERO_DEUNA}")
+                except: 
+                    st.error("No se encontró 'qr_deuna.png' en la carpeta raíz.")
 
         if st.button("🔄 YA PAGUÉ, REVISAR MI SALDO", type="primary"):
             res = enviar_datos({"accion": "registrar_pago_deuda", "nombre_completo": f"{user_nom} {user_ape}"})
             if "PAGO_EXITOSO" in res:
-                st.success("¡Pago validado!")
+                st.success("¡Pago validado! Reiniciando sistema...")
                 st.rerun()
     else:
         st.metric("💸 Deuda Actual", f"${deuda_actual:.2f}")
@@ -120,6 +140,7 @@ if st.session_state.usuario_activo:
                 st.session_state.datos_usuario['Estado'] = "OCUPADO"
                 st.rerun()
 
+    st.divider()
     if st.button("🔒 CERRAR SESIÓN"):
         st.session_state.usuario_activo = False
         st.rerun()
@@ -151,8 +172,18 @@ else:
             r_dir = st.text_input("Dirección *")
             r_telf = st.text_input("WhatsApp (Sin código) *")
             r_pla = st.text_input("Placa *")
+            r_veh = st.selectbox("Vehículo *", VEHICULOS)
             r_pass1 = st.text_input("Contraseña *", type="password")
             if st.form_submit_button("✅ COMPLETAR REGISTRO"):
                 if r_nom and r_pass1:
-                    res = enviar_datos({"accion": "registrar_conductor", "nombre": r_nom, "apellido": r_ape, "cedula": r_ced, "telefono": r_telf, "placa": r_pla, "clave": r_pass1})
+                    res = enviar_datos({
+                        "accion": "registrar_conductor", 
+                        "nombre": r_nom, 
+                        "apellido": r_ape, 
+                        "cedula": r_ced, 
+                        "telefono": r_telf, 
+                        "placa": r_pla, 
+                        "tipo_veh": r_veh,
+                        "clave": r_pass1
+                    })
                     st.success("¡Registro exitoso! Ve a la pestaña INGRESAR.")
