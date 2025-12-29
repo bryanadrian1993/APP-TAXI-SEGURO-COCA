@@ -6,8 +6,7 @@ import re
 from datetime import datetime
 
 # --- ⚙️ CONFIGURACIÓN FIJA (NO TOCAR) ---
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbxIgpRXw32fLkSOz3Ps9eIlFc2FCN1bpRlAwiS446p8Zqr4tth_fCAWnB_ADvW9Ww2p/exec"
-SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwmdasUK1xYWaJjk-ytEAjepFazngTZ91qxhsuN0VZ0OgQmmjyZnD6nOnCNuwIL3HjD/exec"
 
 def cargar_datos(hoja):
     try:
