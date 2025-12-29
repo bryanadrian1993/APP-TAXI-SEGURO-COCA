@@ -6,28 +6,29 @@ import urllib.parse
 import urllib.request
 import random
 
-# --- CONFIGURACIÓN DE PÁGINA ---
+# --- CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 TUS DATOS DE CONEXIÓN
+# 🆔 CONEXIÓN (TU URL NUEVA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw9h2Rm1JkZHnL56-TY8SiuPbeGlM5FJc7mQ1zIXYO4jzeEato_XJ0Jl-DzfTJhXjoQ/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbzgN1j4xiGgqjH842Ui5FwyMNCkH2k73jBd-GeSnn0Ja2ciNI-10RnTajH2GG7xIoCU/exec"
+EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 TUS ESTILOS (INTACTOS)
+# 🎨 ESTILOS (TU DISEÑO ORIGINAL + ESTILO PARA EL PIE DE PÁGINA)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
     .sub-title { font-size: 25px; font-weight: bold; text-align: center; color: #E91E63; margin-top: -10px; margin-bottom: 20px; }
     .step-header { font-size: 18px; font-weight: bold; margin-top: 20px; margin-bottom: 10px; color: #333; }
     .stButton>button { width: 100%; height: 50px; font-weight: bold; font-size: 18px; border-radius: 10px; }
-    .wa-btn { 
-        background-color: #25D366; color: white !important; padding: 15px; border-radius: 10px; 
-        text-align: center; display: block; text-decoration: none; font-weight: bold; font-size: 20px; margin-top: 20px; 
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.1);
-    }
+    .wa-btn { background-color: #25D366; color: white !important; padding: 15px; border-radius: 10px; text-align: center; display: block; text-decoration: none; font-weight: bold; font-size: 20px; margin-top: 20px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1); }
     .id-badge { background-color: #F0F2F6; padding: 5px 15px; border-radius: 20px; border: 1px solid #CCC; font-weight: bold; color: #555; display: inline-block; margin-bottom: 10px; }
+    
+    /* ESTILO NUEVO SOLO PARA EL PIE DE PÁGINA */
+    .footer { text-align: center; color: #888; font-size: 14px; margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; }
+    .footer a { color: #E91E63; text-decoration: none; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -49,27 +50,20 @@ def enviar_datos_a_sheets(datos):
 
 def obtener_chofer_libre():
     df = cargar_datos("CHOFERES")
-    if not df.empty:
-        # Filtramos solo los LIBRES
-        if 'Estado' in df.columns:
-            aptos = df[df['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
-            if not aptos.empty:
-                el = aptos.sample(1).iloc[0]
-                return f"{el['Nombre']} {el['Apellido']}", str(el['Telefono']).replace(".0", "")
+    if not df.empty and 'Estado' in df.columns:
+        aptos = df[df['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
+        if not aptos.empty:
+            el = aptos.sample(1).iloc[0]
+            return f"{el['Nombre']} {el['Apellido']}", str(el['Telefono']).replace(".0", "")
     return None, None
 
-# ==========================================
-# 🚖 INTERFAZ DE CLIENTE (ÚNICA PANTALLA AQUÍ)
-# ==========================================
+# --- INTERFAZ CLIENTE (INTACTA) ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
-
-# Aviso discreto en la barra lateral
-st.sidebar.info("Conductores: Usen el menú de navegación para ir al Portal.")
-
+st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
 st.divider()
 
-# PASO 1: GPS
+# PASO 1
 st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
 loc = get_geolocation()
 if loc:
@@ -81,7 +75,7 @@ else:
     mapa = "No detectado"
     st.info("📍 Por favor activa tu GPS.")
 
-# PASO 2: FORMULARIO
+# PASO 2
 st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
     nombre_cli = st.text_input("Tu Nombre:")
@@ -102,22 +96,22 @@ if enviar:
             chof, t_chof = obtener_chofer_libre()
             id_v = f"TX-{random.randint(1000, 9999)}"
             tipo_solo_texto = tipo_veh.split(" ")[0]
-
-            enviar_datos_a_sheets({
-                "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio, 
-                "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", 
-                "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v,
-                "tipo": tipo_solo_texto
-            })
+            enviar_datos_a_sheets({"accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_limpio, "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", "telefono_chof": t_chof if t_chof else "N/A", "mapa": mapa, "id_viaje": id_v, "tipo": tipo_solo_texto})
             
             if chof:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
-                
-                tipo_msg = tipo_solo_texto.upper()
-                msg = f"🚖 *PEDIDO DE {tipo_msg}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
+                msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
                 link_wa = f"https://wa.me/{t_chof}?text={urllib.parse.quote(msg)}"
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
-            else:
-                st.error("❌ No hay conductores 'LIBRES' ahora.")
+            else: st.error("❌ No hay conductores 'LIBRES' ahora.")
+
+# --- AQUÍ ESTÁ LO ÚNICO NUEVO (EL PIE DE PÁGINA) ---
+st.markdown(f"""
+    <div class="footer">
+        <p>¿Necesitas ayuda o quieres reportar algo?</p>
+        <p>📧 Contacto: <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p>
+        <p>© 2025 Taxi Seguro Global</p>
+    </div>
+""", unsafe_allow_html=True)
