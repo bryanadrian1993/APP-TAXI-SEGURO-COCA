@@ -10,7 +10,7 @@ import random
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🎨 ESTILOS VISUALES ORIGINALES (CSS)
+# 🎨 ESTILOS VISUALES ORIGINALES (CSS) - SIN CAMBIOS
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -65,7 +65,7 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
     a = math.sin(dlat/2)**2 + math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.sin(dlon/2)**2
     return R * (2 * math.atan2(math.sqrt(a), math.sqrt(1-a)))
 
-# --- INTERFAZ ORIGINAL (Mantenida al 100%) ---
+# --- INTERFAZ ORIGINAL (MANTENIDA AL 100%) ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">📍 COCA</div>', unsafe_allow_html=True)
 st.divider()
@@ -95,8 +95,7 @@ if enviar:
     if not nombre_cli or not ref_cli:
         st.error("⚠️ Nombre y Referencia son obligatorios.")
     else:
-        # --- LIMPIEZA DE TELÉFONO DEL CLIENTE ---
-        # Filtramos solo dígitos y corregimos el 0 inicial por 593
+        # LIMPIEZA DE TELÉFONO DEL CLIENTE
         tel_limpio = ''.join(filter(str.isdigit, celular_cli))
         if tel_limpio.startswith("0"):
             tel_limpio = "593" + tel_limpio[1:]
@@ -108,7 +107,6 @@ if enviar:
         
         with st.spinner("🔄 Procesando viaje..."):
             chof, t_chof = obtener_chofer_libre()
-            # Generamos ID único sincronizado
             id_v = f"TX-{random.randint(1000, 9999)}"
             
             # Registro en Excel
@@ -125,8 +123,11 @@ if enviar:
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID DE VIAJE: {id_v}</span></div>', unsafe_allow_html=True)
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 
-                # Mensaje de WhatsApp profesional con ID
-                msg = f"🚖 *PEDIDO DE TAXI*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n💰 Precio: ${costo}\n🗺️ Mapa: {mapa}"
+                # --- MENSAJE DINÁMICO SEGÚN TIPO DE UNIDAD ---
+                # Extraemos la palabra clave (Taxi, Camioneta, Ejecutivo)
+                tipo_texto = tipo_veh.split(" ")[0].upper()
+                msg = f"🚖 *PEDIDO DE {tipo_texto}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_limpio}\n📍 Ref: {ref_cli}\n💰 Precio: ${costo}\n🗺️ Mapa: {mapa}"
+                
                 link_wa = f"https://wa.me/{t_chof}?text={urllib.parse.quote(msg)}"
                 st.markdown(f'<a href="{link_wa}" class="wa-btn" target="_blank">📲 ENVIAR PEDIDO POR WHATSAPP</a>', unsafe_allow_html=True)
             else:
