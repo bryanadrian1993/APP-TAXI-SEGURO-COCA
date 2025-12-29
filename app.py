@@ -6,21 +6,19 @@ import urllib.parse
 import urllib.request
 import random
 import math
-import re # Agregado para el buscador de IDs de fotos
+import re
 
-# --- CONFIGURACIÓN ---
+# --- ⚙️ CONFIGURACIÓN (MANTENIDA EXACTAMENTE IGUAL) ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 
-# Coordenadas base (Coca, Ecuador)
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS (Mantenidos exactamente igual)
+# 🎨 ESTILOS CSS (TUS ESTILOS ORIGINALES SIN TOCAR)
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -33,7 +31,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FÓRMULA DISTANCIA ---
+# --- 📏 LÓGICA DE DISTANCIA (TU FÓRMULA ORIGINAL) ---
 def calcular_distancia(lat1, lon1, lat2, lon2):
     R = 6371
     dlat = math.radians(lat2 - lat1)
@@ -43,12 +41,15 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# --- FUNCIONES ---
+# --- 📥 CARGA DE DATOS (CON LIMPIEZA PARA EVITAR EL KEYERROR) ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
         url = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/gviz/tq?tqx=out:csv&sheet={hoja}&cb={cache_buster}"
-        return pd.read_csv(url)
+        df = pd.read_csv(url)
+        # ESTO EVITA EL ERROR: Borra espacios invisibles en los nombres de las columnas
+        df.columns = df.columns.str.strip()
+        return df
     except: return pd.DataFrame()
 
 def enviar_datos_a_sheets(datos):
@@ -67,16 +68,15 @@ def formatear_internacional(prefijo, numero):
     if n.startswith("0"): n = n[1:]
     return p + n
 
-# Función modificada para filtrar por TIPO DE VEHÍCULO
+# --- 🔍 ASIGNACIÓN POR DISTANCIA Y TIPO DE VEHÍCULO ---
 def obtener_chofer_mas_cercano(lat_cliente, lon_cliente, tipo_solicitado):
     df_choferes = cargar_datos("CHOFERES") #
     df_ubicaciones = cargar_datos("UBICACIONES")
     if df_choferes.empty or df_ubicaciones.empty: return None, None, None
     
-    # Limpiar el texto para comparar (ej: de "Taxi 🚖" a "Taxi")
+    # Filtramos por tipo solicitado (ej: de "Taxi 🚖" a "Taxi")
     tipo_filtro = tipo_solicitado.split(" ")[0].strip().upper()
     
-    # Filtrar solo conductores LIBRES que tengan el TIPO solicitado
     libres = df_choferes[
         (df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE') & 
         (df_choferes['Tipo_Vehiculo'].astype(str).str.upper().str.contains(tipo_filtro))
@@ -93,7 +93,7 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente, tipo_solicitado):
             dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
             if dist < menor_distancia:
                 menor_distancia, mejor_chofer = dist, chofer
-    
+                
     if mejor_chofer is not None:
         telf = ''.join(filter(str.isdigit, str(mejor_chofer['Telefono'])))
         if (len(telf) == 9 or len(telf) == 10) and telf.startswith("0"): telf = "593" + telf[1:]
@@ -101,7 +101,7 @@ def obtener_chofer_mas_cercano(lat_cliente, lon_cliente, tipo_solicitado):
         return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf, foto
     return None, None, None
 
-# --- INTERFAZ CLIENTE ---
+# --- 📱 INTERFAZ CLIENTE (TUS PASOS 1 Y 2) ---
 st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
 st.markdown('<div class="sub-title">🌎 SERVICIO GLOBAL</div>', unsafe_allow_html=True)
 st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
@@ -136,7 +136,7 @@ if enviar:
     else:
         tel_final_cli = formatear_internacional(prefijo_pais, celular_cli)
         with st.spinner("🔄 Buscando la unidad más cercana..."):
-            # Se agrega 'tipo_veh' para filtrar por tipo de unidad
+            # Aquí ahora pasamos el 'tipo_veh' para filtrar correctamente
             chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual, tipo_veh)
             id_v = f"TX-{random.randint(1000, 9999)}"
             mapa_link = f"http://maps.google.com/maps?q={lat_actual},{lon_actual}"
@@ -151,20 +151,21 @@ if enviar:
                 st.balloons()
                 st.markdown(f'<div style="text-align:center;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
                 
+                # REPARADOR DE FOTO DE DRIVE (TU PEDIDO)
                 if foto_chof and "http" in foto_chof:
                     match_foto = re.search(r'[-\w]{25,}', foto_chof)
                     if match_foto:
                         id_foto = match_foto.group()
                         url_foto_final = f"https://lh3.googleusercontent.com/u/0/d/{id_foto}"
-                        # Foto circular reparada para Google Drive
                         st.markdown(f'<div style="text-align:center; margin-bottom:15px;"><img src="{url_foto_final}" style="width:130px;height:130px;border-radius:50%;object-fit:cover;border:4px solid #25D366;box-shadow: 0 4px 8px rgba(0,0,0,0.2);"></div>', unsafe_allow_html=True)
 
                 st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
                 
+                # MENSAJE DE WHATSAPP (TU ESTRUCTURA ORIGINAL)
                 msg = f"🚖 *PEDIDO*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa_link}"
                 link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
-                # Botón de WhatsApp exactamente como en tu diseño
                 st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366;color:white;padding:15px;text-align:center;display:block;text-decoration:none;font-weight:bold;font-size:20px;border-radius:10px;">📲 ENVIAR UBICACIÓN</a>', unsafe_allow_html=True)
-            else: st.error("❌ No hay conductores 'LIBRES' cerca de ti.")
+            else: st.error("❌ No hay conductores de este tipo 'LIBRES' cerca de ti.")
 
+# --- 🏁 FOOTER ---
 st.markdown(f'<div class="footer"><p>¿Necesitas ayuda?</p><p>📧 <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p><p>© 2025 Taxi Seguro Global</p></div>', unsafe_allow_html=True)
