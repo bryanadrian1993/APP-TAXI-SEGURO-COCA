@@ -7,17 +7,17 @@ from datetime import datetime
 # --- CONFIGURACIÓN DE PÁGINA ---
 st.set_page_config(page_title="Portal Conductores", page_icon="🚖", layout="centered")
 
-# 🆔 TUS DATOS DE CONEXIÓN
+# 🆔 TUS DATOS DE CONEXIÓN (YA CON TU URL NUEVA)
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyzzpVm-dlOu8ZGbPUGfOnq-joRYoV-wXuckOvgsmKRAbRZaJQHJ6k9uxfA4pU9EK0d/exec"
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbw9h2Rm1JkZHnL56-TY8SiuPbeGlM5FJc7mQ1zIXYO4jzeEato_XJ0Jl-DzfTJhXjoQ/exec"
 
-# --- INICIALIZAR SESIÓN (Para que no se salga al dar clic) ---
+# --- INICIALIZAR ESTADO DE SESIÓN ---
 if 'usuario_activo' not in st.session_state:
-    st.session_state.usuario_activo = None
+    st.session_state.usuario_activo = False
 if 'datos_usuario' not in st.session_state:
     st.session_state.datos_usuario = {}
 
-# --- LISTAS ---
+# --- LISTAS DE OPCIONES ---
 PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "USA"]
 IDIOMAS = ["Español", "English", "Português", "Français"]
 VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"]
@@ -38,10 +38,9 @@ def enviar_datos(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-# --- FUNCIÓN ESPECIAL PARA CAMBIAR ESTADO ---
-def cambiar_estado_nube(nombre, apellido, nuevo_estado):
+def actualizar_estado_nube(nombre, apellido, nuevo_estado):
     datos = {
-        "accion": "actualizar_estado", # OJO: Debes agregar esto a tu Script de Google
+        "accion": "actualizar_estado", 
         "nombre": nombre,
         "apellido": apellido,
         "estado": nuevo_estado
@@ -51,128 +50,156 @@ def cambiar_estado_nube(nombre, apellido, nuevo_estado):
 # --- INTERFAZ PRINCIPAL ---
 st.title("🚖 Portal de Socios")
 
-# Si ya está logueado, mostramos DIRECTAMENTE el Panel de Control
+# ====================================================
+# ESCENARIO 1: EL CONDUCTOR YA INGRESÓ (PANEL DE CONTROL)
+# ====================================================
 if st.session_state.usuario_activo:
     user = st.session_state.datos_usuario
-    st.success(f"✅ Conductor Activo: {user['Nombre']} {user['Apellido']}")
+    
+    st.success(f"✅ Bienvenido: **{user['Nombre']} {user['Apellido']}**")
     
     st.markdown("---")
-    st.subheader(f"🚦 PANEL DE CONTROL - {user['Tipo_Vehiculo']}")
+    st.subheader(f"🚦 PANEL DE CONTROL - {user.get('Tipo_Vehiculo', 'Conductor')}")
     
-    # BOTONES DE ESTADO (LO QUE PEDISTE)
+    # --- BOTONES DE ESTADO ---
     col_btn1, col_btn2 = st.columns(2)
     
     with col_btn1:
         if st.button("🟢 ESTOY LIBRE", use_container_width=True):
-            with st.spinner("Actualizando a LIBRE..."):
-                # Enviamos la orden a Google Sheets
-                cambiar_estado_nube(user['Nombre'], user['Apellido'], "LIBRE")
+            with st.spinner("Actualizando..."):
+                res = actualizar_estado_nube(user['Nombre'], user['Apellido'], "LIBRE")
+                st.session_state.datos_usuario['Estado'] = "LIBRE"
                 st.toast("✅ ¡Ahora estás visible para clientes!")
-                st.session_state.datos_usuario['Estado'] = "LIBRE" # Actualizamos visualmente
+                st.rerun()
     
     with col_btn2:
         if st.button("🔴 ESTOY OCUPADO", use_container_width=True):
-            with st.spinner("Actualizando a OCUPADO..."):
-                # Enviamos la orden a Google Sheets
-                cambiar_estado_nube(user['Nombre'], user['Apellido'], "OCUPADO")
+            with st.spinner("Actualizando..."):
+                res = actualizar_estado_nube(user['Nombre'], user['Apellido'], "OCUPADO")
+                st.session_state.datos_usuario['Estado'] = "OCUPADO"
                 st.toast("⛔ Te has puesto como Ocupado.")
-                st.session_state.datos_usuario['Estado'] = "OCUPADO" # Actualizamos visualmente
+                st.rerun()
 
-    # INFORMACIÓN DE SALDO
-    st.info(f"💰 Tu Saldo Pendiente: ${user.get('SALDO', 0)}")
+    # Mostramos el estado actual grande
+    estado_actual = st.session_state.datos_usuario.get('Estado', 'DESCONOCIDO')
+    if estado_actual == "LIBRE":
+        st.markdown(f"<h2 style='text-align: center; color: green;'>ESTADO: {estado_actual}</h2>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<h2 style='text-align: center; color: red;'>ESTADO: {estado_actual}</h2>", unsafe_allow_html=True)
+
+    st.info(f"💰 Saldo Pendiente: ${user.get('SALDO', 0)}")
     
     st.markdown("---")
-    if st.button("Cerrar Sesión"):
-        st.session_state.usuario_activo = None
+    if st.button("🔒 CERRAR SESIÓN"):
+        st.session_state.usuario_activo = False
         st.session_state.datos_usuario = {}
         st.rerun()
 
+# ====================================================
+# ESCENARIO 2: NO HA INGRESADO (LOGIN O REGISTRO)
+# ====================================================
 else:
-    # SI NO ESTÁ LOGUEADO, MOSTRAMOS EL LOGIN/REGISTRO
     tab1, tab2 = st.tabs(["🔐 INGRESAR", "📝 REGISTRARME"])
 
-    # ==========================================
-    # PESTAÑA 1: LOGIN (NOMBRE Y APELLIDO)
-    # ==========================================
+    # --- PESTAÑA 1: LOGIN (SOLO NOMBRE Y APELLIDO) ---
     with tab1:
-        st.info("Ingresa tus datos para acceder al panel.")
-        c1, c2 = st.columns(2)
-        with c1:
-            l_nom = st.text_input("Nombre", key="log_n")
-        with c2:
-            l_ape = st.text_input("Apellido", key="log_a")
-        l_pass = st.text_input("Contraseña", type="password", key="log_p")
+        st.info("Ingresa tus datos para acceder.")
+        
+        c_log1, c_log2 = st.columns(2)
+        with c_log1:
+            l_nom = st.text_input("Nombre", key="ln")
+        with c_log2:
+            l_ape = st.text_input("Apellido", key="la")
+            
+        l_pass = st.text_input("Contraseña", type="password", key="lp")
 
-        if st.button("ENTRAR", type="primary"):
+        if st.button("ENTRAR AL SISTEMA", type="primary"):
             if l_nom and l_ape and l_pass:
-                with st.spinner("Verificando..."):
+                with st.spinner("Buscando usuario..."):
                     df = cargar_datos("CHOFERES")
+                    
                     if not df.empty:
-                        # Limpieza para comparar
-                        df['N_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
-                        df['A_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
-                        df['P_Clean'] = df['Clave'].astype(str).str.strip()
-                        
-                        u_nom = str(l_nom).strip().upper()
-                        u_ape = str(l_ape).strip().upper()
-                        u_pass = str(l_pass).strip()
+                        # Limpieza de datos (Mayúsculas y sin espacios)
+                        try:
+                            # Aseguramos que existan las columnas en el DataFrame
+                            if 'Nombre' in df.columns and 'Apellido' in df.columns and 'Clave' in df.columns:
+                                df['N_Clean'] = df['Nombre'].astype(str).str.strip().str.upper()
+                                df['A_Clean'] = df['Apellido'].astype(str).str.strip().str.upper()
+                                df['P_Clean'] = df['Clave'].astype(str).str.strip()
+                                
+                                u_nom = str(l_nom).strip().upper()
+                                u_ape = str(l_ape).strip().upper()
+                                u_pass = str(l_pass).strip()
 
-                        found = df[(df['N_Clean'] == u_nom) & (df['A_Clean'] == u_ape)]
-                        
-                        if not found.empty:
-                            usuario = found.iloc[0]
-                            if str(usuario['P_Clean']) == u_pass:
-                                # ¡LOGIN EXITOSO! GUARDAMOS EN SESIÓN
-                                st.session_state.usuario_activo = True
-                                st.session_state.datos_usuario = usuario.to_dict()
-                                st.rerun() # Recargamos para mostrar el panel
+                                # Buscamos coincidencia
+                                encontrado = df[(df['N_Clean'] == u_nom) & (df['A_Clean'] == u_ape)]
+                                
+                                if not encontrado.empty:
+                                    usuario = encontrado.iloc[0]
+                                    # Verificamos contraseña
+                                    if str(usuario['P_Clean']) == u_pass:
+                                        st.session_state.usuario_activo = True
+                                        st.session_state.datos_usuario = usuario.to_dict()
+                                        st.balloons()
+                                        st.rerun()
+                                    else:
+                                        st.error("❌ Contraseña incorrecta.")
+                                else:
+                                    st.error("❌ Usuario no encontrado. Revisa Nombre y Apellido.")
                             else:
-                                st.error("❌ Contraseña incorrecta.")
-                        else:
-                            st.error("❌ Usuario no encontrado.")
+                                st.error("⚠️ El archivo de Excel no tiene las columnas correctas (Nombre, Apellido, Clave).")
+                        except Exception as e:
+                            st.error(f"Error procesando datos: {e}")
                     else:
-                        st.error("Error de conexión.")
+                        st.error("Error conectando con la base de datos.")
             else:
-                st.warning("Llena todos los campos.")
+                st.warning("⚠️ Llena todos los campos.")
 
-    # ==========================================
-    # PESTAÑA 2: REGISTRO (COMPLETO)
-    # ==========================================
+    # --- PESTAÑA 2: REGISTRO (COMPLETO) ---
     with tab2:
         st.markdown("### 📝 Nuevo Registro")
-        with st.form("form_reg"):
+        with st.form("reg_form"):
             c1, c2 = st.columns(2)
-            r_nom = c1.text_input("Nombre *")
-            r_ape = c2.text_input("Apellido *")
+            r_nom = c1.text_input("Nombres *")
+            r_ape = c2.text_input("Apellidos *")
             
             c3, c4 = st.columns(2)
-            r_ced = c3.text_input("Cédula *")
-            r_tel = c4.text_input("WhatsApp *")
+            r_ced = c3.text_input("Cédula/ID *")
+            r_pais = c4.selectbox("País *", PAISES)
             
             c5, c6 = st.columns(2)
-            r_pla = c5.text_input("Placa *")
-            r_veh = c6.selectbox("Vehículo", VEHICULOS)
+            r_dir = c5.text_input("Dirección *")
+            r_idioma = c6.selectbox("Idioma *", IDIOMAS)
             
-            r_pais = st.selectbox("País", PAISES)
-            r_idioma = st.selectbox("Idioma", IDIOMAS)
-            r_dir = st.text_input("Dirección")
-            r_pass = st.text_input("Crear Clave *", type="password")
-
-            if st.form_submit_button("REGISTRARSE"):
-                if r_nom and r_ape and r_ced and r_tel and r_pla and r_pass:
-                    datos = {
-                        "accion": "registrar_conductor",
-                        "nombre": r_nom, "apellido": r_ape,
-                        "cedula": r_ced, "telefono": r_tel,
-                        "placa": r_pla, "tipo_veh": r_veh,
-                        "pais": r_pais, "idioma": r_idioma,
-                        "direccion": r_dir, "clave": r_pass,
-                        "email": ""
-                    }
-                    res = enviar_datos(datos)
-                    if "REGISTRO_EXITOSO" in res:
-                        st.success("✅ Cuenta creada. Ahora INGRESA en la otra pestaña.")
-                    else:
-                        st.error("Error de conexión.")
+            r_telf = st.text_input("WhatsApp (con código país) *")
+            
+            st.markdown("---")
+            c7, c8 = st.columns(2)
+            r_pla = c7.text_input("Placa *")
+            r_veh = c8.selectbox("Tipo Vehículo *", VEHICULOS)
+            
+            r_pass1 = st.text_input("Crear Clave *", type="password")
+            r_pass2 = st.text_input("Confirmar Clave *", type="password")
+            
+            if st.form_submit_button("✅ REGISTRARME"):
+                if not (r_nom and r_ape and r_ced and r_telf and r_pla and r_pass1):
+                    st.warning("⚠️ Faltan campos obligatorios.")
+                elif r_pass1 != r_pass2:
+                    st.error("⚠️ Las contraseñas no coinciden.")
                 else:
-                    st.warning("Faltan datos obligatorios.")
+                    with st.spinner("Creando cuenta..."):
+                        datos = {
+                            "accion": "registrar_conductor",
+                            "nombre": r_nom, "apellido": r_ape,
+                            "cedula": r_ced, "telefono": r_telf,
+                            "placa": r_pla, "tipo_veh": r_veh,
+                            "pais": r_pais, "idioma": r_idioma,
+                            "direccion": r_dir, "clave": r_pass1,
+                            "email": ""
+                        }
+                        res = enviar_datos(datos)
+                        if "REGISTRO_EXITOSO" in res:
+                            st.success("🎉 ¡Cuenta Creada! Ve a la pestaña INGRESAR.")
+                            st.balloons()
+                        else:
+                            st.error("Error de conexión.")
