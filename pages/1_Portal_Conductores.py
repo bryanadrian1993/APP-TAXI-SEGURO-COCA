@@ -1,113 +1,90 @@
 import streamlit as st
-import pandas as pd
-import urllib.request
 import urllib.parse
+import urllib.request
 
 # --- CONFIGURACIÓN ---
-st.set_page_config(page_title="Registro Conductores", layout="centered")
+st.set_page_config(page_title="Registro Conductores", page_icon="📝")
 
-# URL ACTUALIZADA SEGÚN TU ÚLTIMA IMPLEMENTACIÓN
-URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyJ1CM5rl_oAhkEJlG31mjpUCyDeOiydXYbzjg48IXcPGbbSOE1Ndtgn8haWoDG-CP0/exec"
-EMAIL_ADMIN = "taxi-seguroecuador@hotmail.com"
+# TU NUEVO URL DEL SCRIPT (Asegúrate de que sea el correcto)
+URL_SCRIPT = "https://script.google.com/macros/s/AKfycbyzzpVm-dlOu8ZGbPUGfOnq-joRYoV-wXuckOvgsmKRAbRZaJQHJ6k9uxfA4pU9EK0d/exec"
 
-# --- INICIALIZACIÓN (Evita el NameError) ---
-if 'conectado' not in st.session_state:
-    st.session_state.conectado = False
-if 'usuario_completo' not in st.session_state:
-    st.session_state.usuario_completo = ""
+# --- LISTAS DE OPCIONES ---
+PAISES = ["Ecuador", "Colombia", "Perú", "México", "España", "USA"]
+IDIOMAS = ["Español", "English", "Português", "Français"]
+VEHICULOS = ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"]
 
-# --- FUNCIONES ---
-def actualizar_estado_en_sheets(nombre_completo, nuevo_estado):
+def enviar_datos(datos):
     try:
-        # Enviamos el nombre limpio para que el script de Google lo encuentre
-        params = {
-            "accion": "actualizar_estado", 
-            "nombre": nombre_completo.strip().upper(), 
-            "estado": nuevo_estado
-        }
-        url_final = f"{URL_SCRIPT}?{urllib.parse.urlencode(params)}"
+        params = urllib.parse.urlencode(datos)
+        url_final = f"{URL_SCRIPT}?{params}"
         with urllib.request.urlopen(url_final) as response:
             return response.read().decode('utf-8')
     except Exception as e:
-        return f"Error de conexión: {e}"
+        return f"Error: {e}"
 
-def registrar_chofer(nombre, apellido, cedula, email, direccion, telefono, placa, clave):
-    try:
-        params = {
-            "accion": "registro", "nombre": nombre, "apellido": apellido,
-            "cedula": cedula, "email": email, "direccion": direccion,
-            "telefono": telefono, "placa": placa, "clave": clave
-        }
-        url_final = f"{URL_SCRIPT}?{urllib.parse.urlencode(params)}"
-        with urllib.request.urlopen(url_final) as response:
-            return response.read().decode('utf-8')
-    except Exception as e: return f"Error: {e}"
+# --- INTERFAZ DEL FORMULARIO ---
+st.title("📝 Registro Oficial de Socio")
+st.markdown("Completa los datos para activar tu cuenta global.")
 
-# --- DISEÑO ---
-st.image("https://cdn-icons-png.flaticon.com/512/2083/2083260.png", width=100)
-st.title("📝 REGISTRO DE SOCIOS")
-
-# --- 1. ACCESO CON CLAVE ---
-if not st.session_state.conectado:
-    with st.expander("🔐 INGRESO PARA SOCIOS REGISTRADOS", expanded=True):
-        c1, c2 = st.columns(2)
-        nom_acc = c1.text_input("Nombre (como registró):")
-        ape_acc = c2.text_input("Apellido (como registró):")
-        pass_acc = st.text_input("Tu Clave de Socio:", type="password")
+with st.form("form_registro_nuevo"):
+    st.subheader("👤 Datos Personales")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        nombre = st.text_input("Nombres *")
+        cedula = st.text_input("Cédula / DNI *")
+        pais = st.selectbox("País de Operación *", PAISES)
+        direccion = st.text_input("Dirección Domiciliaria *")
         
-        if st.button("VERIFICAR E INGRESAR"):
-            if nom_acc and ape_acc and pass_acc:
-                # Aquí podrías agregar validación de clave con el script si fuera necesario
-                st.session_state.conectado = True
-                st.session_state.usuario_completo = f"{nom_acc.strip()} {ape_acc.strip()}".upper()
-                st.rerun()
-            else:
-                st.error("❌ Por favor, ingrese Nombre, Apellido y Clave.")
-else:
-    st.success(f"Socio Activo: **{st.session_state.usuario_completo}**")
-    col_b1, col_b2 = st.columns(2)
-    
-    if col_b1.button("🟢 ESTOY LIBRE", use_container_width=True):
-        with st.spinner("Actualizando Excel..."):
-            res = actualizar_estado_en_sheets(st.session_state.usuario_completo, "LIBRE")
-            if "OK" in res:
-                st.toast("✅ Estado actualizado: LIBRE")
-            else:
-                st.error(f"❌ Error del Servidor: {res}")
-    
-    if col_b2.button("🔴 ESTOY OCUPADO", use_container_width=True):
-        with st.spinner("Actualizando Excel..."):
-            res = actualizar_estado_en_sheets(st.session_state.usuario_completo, "OCUPADO")
-            if "OK" in res:
-                st.toast("✅ Estado actualizado: OCUPADO")
-            else:
-                st.error(f"❌ Error del Servidor: {res}")
+    with col2:
+        apellido = st.text_input("Apellidos *")
+        email = st.text_input("Correo Electrónico (Opcional)")
+        idioma = st.selectbox("Idioma de preferencia *", IDIOMAS)
+        telefono = st.text_input("WhatsApp (Ej: 593...) *")
 
-    if st.button("Cerrar Sesión"):
-        st.session_state.conectado = False
-        st.session_state.usuario_completo = ""
-        st.rerun()
-
-st.divider()
-
-# --- 2. FORMULARIO DE REGISTRO ORIGINAL (SE MANTIENE IGUAL) ---
-with st.form("form_registro"):
-    st.write("👤 **Datos Personales**")
-    c_reg1, c_reg2 = st.columns(2)
-    r_nombre = c_reg1.text_input("Nombres:")
-    r_apellido = c_reg2.text_input("Apellidos:")
-    r_cedula = st.text_input("Cédula:")
-    r_dir = st.text_input("Dirección:")
-    r_email = st.text_input("Correo:")
-    r_tel = st.text_input("WhatsApp (ej: 593...):")
-    r_placa = st.text_input("Placa:")
-    r_clave = st.text_input("Crea tu Contraseña:", type="password")
-    r_acepto = st.checkbox("Documentos vigentes.")
+    st.markdown("---")
+    st.subheader("🚘 Datos del Vehículo y Seguridad")
+    col3, col4 = st.columns(2)
     
-    if st.form_submit_button("🚀 GUARDAR REGISTRO"):
-        if r_nombre and r_clave:
-            res_reg = registrar_chofer(r_nombre, r_apellido, r_cedula, r_email, r_dir, r_tel, r_placa, r_clave)
-            if "REGISTRO_OK" in res_reg:
-                st.success("✅ ¡Registrado con éxito!")
-            else:
-                st.error(f"Error al registrar: {res_reg}")
+    with col3:
+        placa = st.text_input("Placa del Vehículo *")
+        tipo_veh = st.selectbox("Tipo de Vehículo *", VEHICULOS)
+        
+    with col4:
+        clave = st.text_input("Crea una Contraseña *", type="password")
+        confirm_clave = st.text_input("Confirma la Contraseña *", type="password")
+
+    st.caption("Al registrarte aceptas los términos y condiciones de la plataforma.")
+    
+    enviar = st.form_submit_button("✅ CREAR CUENTA Y TRABAJAR")
+
+    if enviar:
+        if not (nombre and apellido and cedula and telefono and placa and clave):
+            st.error("⚠️ Por favor llena los campos obligatorios (*).")
+        elif clave != confirm_clave:
+            st.error("⚠️ Las contraseñas no coinciden.")
+        else:
+            with st.spinner("Registrando en el sistema..."):
+                datos = {
+                    "accion": "registrar_conductor",
+                    "nombre": nombre,
+                    "apellido": apellido,
+                    "cedula": cedula,
+                    "email": email,
+                    "direccion": direccion,
+                    "telefono": telefono,
+                    "placa": placa,
+                    "clave": clave,
+                    "pais": pais,
+                    "idioma": idioma,
+                    "tipo_veh": tipo_veh
+                }
+                
+                respuesta = enviar_datos(datos)
+                
+                if "REGISTRO_EXITOSO" in respuesta:
+                    st.balloons()
+                    st.success("🎉 ¡REGISTRO EXITOSO!")
+                    st.info("Tu cuenta está ACTIVA. Ya puedes recibir pedidos.")
+                else:
+                    st.error(f"Error de conexión: {respuesta}")
