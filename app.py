@@ -7,19 +7,142 @@ import urllib.request
 import random
 import math
 
-# --- CONFIGURACIÓN ---
+# --- ⚙️ CONFIGURACIÓN ---
 st.set_page_config(page_title="TAXI SEGURO", page_icon="🚖", layout="centered")
 
-# 🆔 CONEXIÓN
+# 🆔 CONEXIÓN TÉCNICA
 SHEET_ID = "1l3XXIoAggDd2K9PWnEw-7SDlONbtUvpYVw3UYD_9hus"
 URL_SCRIPT = "https://script.google.com/macros/s/AKfycbwzOVH8c8f9WEoE4OJOTIccz_EgrOpZ8ySURTVRwi0bnQhFnWVdgfX1W8ivTIu5dFfs/exec"
 EMAIL_CONTACTO = "taxi-seguro-world@hotmail.com"
 
-# Coordenadas base (solo por si el GPS falla al inicio, apunta a Coca, Ecuador)
+# Coordenadas base (Coca, Ecuador)
 LAT_BASE = -0.466657
 LON_BASE = -76.989635
 
-# 🎨 ESTILOS
+# --- 🌍 DICCIONARIO DE TRADUCCIONES (7 IDIOMAS - NIVEL 2) ---
+TRADUCCIONES = {
+    "Español": {
+        "bienvenida": "🚖 TAXI SEGURO",
+        "subtitulo": "🌎 SERVICIO GLOBAL",
+        "paso1": "📡 PASO 1: ACTIVAR UBICACIÓN",
+        "paso2": "📝 PASO 2: DATOS DEL VIAJE",
+        "gps_ok": "✅ GPS ACTIVADO",
+        "gps_off": "📍 Por favor activa tu GPS.",
+        "nombre": "Tu Nombre:",
+        "pregunta": "¿Qué necesitas?",
+        "boton": "🚖 SOLICITAR UNIDAD",
+        "error": "⚠️ Nombre, Teléfono y Referencia son obligatorios.",
+        "buscando": "🔄 Buscando la unidad más cercana...",
+        "encontrado": "✅ ¡Unidad Encontrada! Conductor: ",
+        "no_libre": "❌ No hay conductores 'LIBRES' cerca de ti.",
+        "footer_ayuda": "¿Necesitas ayuda?",
+        "whatsapp": "📲 ENVIAR UBICACIÓN"
+    },
+    "English": {
+        "bienvenida": "🚖 SECURE TAXI",
+        "subtitulo": "🌎 GLOBAL SERVICE",
+        "paso1": "📡 STEP 1: ENABLE LOCATION",
+        "paso2": "📝 STEP 2: TRIP DETAILS",
+        "gps_ok": "✅ GPS ENABLED",
+        "gps_off": "📍 Please enable your GPS.",
+        "nombre": "Your Name:",
+        "pregunta": "What do you need?",
+        "boton": "🚖 REQUEST RIDE",
+        "error": "⚠️ Name, Phone, and Reference are required.",
+        "buscando": "🔄 Looking for the nearest unit...",
+        "encontrado": "✅ Unit Found! Driver: ",
+        "no_libre": "❌ No 'FREE' drivers near you.",
+        "footer_ayuda": "Need help?",
+        "whatsapp": "📲 SEND LOCATION"
+    },
+    "Português": {
+        "bienvenida": "🚖 TÁXI SEGURO",
+        "subtitulo": "🌎 SERVIÇO GLOBAL",
+        "paso1": "📡 PASSO 1: ATIVAR LOCALIZAÇÃO",
+        "paso2": "📝 PASSO 2: DADOS DA VIAGEM",
+        "gps_ok": "✅ GPS ATIVADO",
+        "gps_off": "📍 Por favor, ative seu GPS.",
+        "nombre": "Seu Nome:",
+        "pregunta": "O que você precisa?",
+        "boton": "🚖 SOLICITAR UNIDADE",
+        "error": "⚠️ Nome, Telefone e Referência são obrigatórios.",
+        "buscando": "🔄 Procurando a unidade mais próxima...",
+        "encontrado": "✅ Unidade Encontrada! Motorista: ",
+        "no_libre": "❌ Não há motoristas 'LIVRES' perto de você.",
+        "footer_ayuda": "Precisa de ajuda?",
+        "whatsapp": "📲 ENVIAR LOCALIZAÇÃO"
+    },
+    "Français": {
+        "bienvenida": "🚖 TAXI SÉCURISÉ",
+        "subtitulo": "🌎 SERVICE GLOBAL",
+        "paso1": "📡 ÉTAPE 1 : ACTIVER LA LOCALISATION",
+        "paso2": "📝 ÉTAPE 2 : DÉTAILS DU VOYAGE",
+        "gps_ok": "✅ GPS ACTIVÉ",
+        "gps_off": "📍 Veuillez activer votre GPS.",
+        "nombre": "Votre Nom :",
+        "pregunta": "De quoi avez-vous besoin ?",
+        "boton": "🚖 DEMANDER UNE COURSE",
+        "error": "⚠️ Le nom, le téléphone et la référence sont obligatoires.",
+        "buscando": "🔄 Recherche de l'unité la plus proche...",
+        "encontrado": "✅ Unité Trouvée ! Chauffeur : ",
+        "no_libre": "❌ Aucun chauffeur 'LIBRE' à proximité.",
+        "footer_ayuda": "Besoin d'aide ?",
+        "whatsapp": "📲 ENVOYER LA LOCALISATION"
+    },
+    "Italiano": {
+        "bienvenida": "🚖 TAXI SICURO",
+        "subtitulo": "🌎 SERVIZIO GLOBALE",
+        "paso1": "📡 PASSO 1: ATTIVA POSIZIONE",
+        "paso2": "📝 PASSO 2: DETTAGLI VIAGGIO",
+        "gps_ok": "✅ GPS ATTIVATO",
+        "gps_off": "📍 Per favore attiva il tuo GPS.",
+        "nombre": "Il tuo Nome:",
+        "pregunta": "Di cosa hai bisogno?",
+        "boton": "🚖 RICHIEDI CORSA",
+        "error": "⚠️ Nome, Telefono e Riferimento sono obbligatori.",
+        "buscando": "🔄 Ricerca dell'unità più vicina...",
+        "encontrado": "✅ Unità Trovata! Conducente: ",
+        "no_libre": "❌ Nessun conducente 'LIBERO' nelle vicinanze.",
+        "footer_ayuda": "Serve aiuto?",
+        "whatsapp": "📲 INVIA POSIZIONE"
+    },
+    "Deutsch": {
+        "bienvenida": "🚖 SICHERES TAXI",
+        "subtitulo": "🌎 GLOBALER SERVICE",
+        "paso1": "📡 SCHRITT 1: STANDORT AKTIVIEREN",
+        "paso2": "📝 SCHRITT 2: REISEINFOS",
+        "gps_ok": "✅ GPS AKTIVIERT",
+        "gps_off": "📍 Bitte aktivieren Sie Ihr GPS.",
+        "nombre": "Ihr Name:",
+        "pregunta": "Was brauchen Sie?",
+        "boton": "🚖 TAXI ANFORDERN",
+        "error": "⚠️ Name, Telefon und Referenz sind erforderlich.",
+        "buscando": "🔄 Suche nach der nächsten Einheit...",
+        "encontrado": "✅ Einheit gefunden! Fahrer: ",
+        "no_libre": "❌ Keine 'FREIEN' Fahrer in Ihrer Nähe.",
+        "footer_ayuda": "Brauchen Sie Hilfe?",
+        "whatsapp": "📲 STANDORT SENDEN"
+    },
+    "Kichwa": {
+        "bienvenida": "🚖 ALLI ANTAWA",
+        "subtitulo": "🌎 TUKUY LLAKTAPAK",
+        "paso1": "📡 SHUK: MAYPI KASHKATA RICUCHIY",
+        "paso2": "📝 ISHKAY: PURINAPAK WILLAY",
+        "gps_ok": "✅ GPS LLANKACUNMI",
+        "gps_off": "📍 GPS-ta pascary.",
+        "nombre": "Kampa Shuti:",
+        "pregunta": "Imatatak mutsurinki?",
+        "boton": "🚖 ANTAWATA MAÑAY",
+        "error": "⚠️ Shuti, Yupay, mañaypash mutsurikunmi.",
+        "buscando": "🔄 Kuchulla antawata maskacun...",
+        "encontrado": "✅ Antawa tarishca! Pushac: ",
+        "no_libre": "❌ Mana tiyanchu pushaccuna.",
+        "footer_ayuda": "Yanapata munankichu?",
+        "whatsapp": "📲 MAYPI KASHKATA KACHAY"
+    }
+}
+
+# --- 🎨 ESTILOS CSS ---
 st.markdown("""
     <style>
     .main-title { font-size: 40px; font-weight: bold; text-align: center; color: #000; margin-bottom: 0; }
@@ -42,7 +165,7 @@ def calcular_distancia(lat1, lon1, lat2, lon2):
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
     return R * c
 
-# --- FUNCIONES ---
+# --- FUNCIONES DE DATOS ---
 def cargar_datos(hoja):
     try:
         cache_buster = datetime.now().strftime("%Y%m%d%H%M%S")
@@ -58,181 +181,95 @@ def enviar_datos_a_sheets(datos):
             return response.read().decode('utf-8')
     except Exception as e: return f"Error: {e}"
 
-# === LÓGICA INTERNACIONAL INTELIGENTE ===
 def formatear_internacional(prefijo, numero):
     if not numero: return ""
-    # 1. Limpiar el número (quitar espacios, guiones, letras, puntos)
-    n = str(numero).split(".")[0].strip()
-    n = ''.join(filter(str.isdigit, n))
-    
-    # 2. Limpiar el prefijo (quitar el + y paréntesis) -> Ej: "+593 (Ecuador)" queda "593"
+    n = ''.join(filter(str.isdigit, str(numero).split(".")[0].strip()))
     p = str(prefijo).split(" ")[0].replace("+", "").strip()
-    
-    # 3. Validaciones especiales por país
-    # Si el usuario ya puso el código de país al inicio, no lo repetimos
-    if n.startswith(p):
-        return n 
-    
-    # ARGENTINA: A veces necesitan un 9 después del 54 para móviles (54 9 ...)
-    if p == "54" and not n.startswith("9"):
-        # Opcional: Podríamos forzar el 9, pero dejemos que WhatsApp lo intente estándar primero
-        pass 
-
-    # Quitamos el '0' inicial si existe (Común en Ecu, Col, UK)
-    if n.startswith("0"):
-        n = n[1:]
-        
+    if n.startswith(p): return n 
+    if n.startswith("0"): n = n[1:]
     return p + n
 
 def obtener_chofer_mas_cercano(lat_cliente, lon_cliente):
     df_choferes = cargar_datos("CHOFERES")
     df_ubicaciones = cargar_datos("UBICACIONES")
-    
     if df_choferes.empty or df_ubicaciones.empty: return None, None, None
-
-    if 'Estado' in df_choferes.columns:
-        libres = df_choferes[df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
-        if libres.empty: return None, None, None
+    
+    libres = df_choferes[df_choferes['Estado'].astype(str).str.strip().str.upper() == 'LIBRE']
+    if libres.empty: return None, None, None
             
-        mejor_chofer = None
-        menor_distancia = float('inf')
-        
-        for index, chofer in libres.iterrows():
-            nombre_completo = f"{chofer['Nombre']} {chofer['Apellido']}"
-            ubi = df_ubicaciones[df_ubicaciones['Conductor'] == nombre_completo]
-            if not ubi.empty:
-                lat_chof = float(ubi.iloc[-1]['Latitud'])
-                lon_chof = float(ubi.iloc[-1]['Longitud'])
-                dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
-                if dist < menor_distancia:
-                    menor_distancia = dist
-                    mejor_chofer = chofer
-        
-        if mejor_chofer is not None:
-            foto = ""
-            try:
-                if 'FOTO_PENDIENTE' in mejor_chofer: foto = str(mejor_chofer['FOTO_PENDIENTE'])
-                else: foto = str(mejor_chofer.iloc[11]) 
-            except: pass
-            
-            # Recuperamos el teléfono del chofer (se asume que en el registro ya se guardó bien o se corregirá)
-            # Para estar seguros, si no tiene código y parece de Ecuador, le ponemos 593
-            telf = str(mejor_chofer['Telefono']).split(".")[0].strip()
-            telf_limpio = ''.join(filter(str.isdigit, telf))
-            
-            # Parche de seguridad para choferes antiguos que se registraron sin código
-            if len(telf_limpio) == 9 and telf_limpio.startswith("09"): # Ecuador típico
-                telf_limpio = "593" + telf_limpio[1:]
-            elif len(telf_limpio) == 10 and telf_limpio.startswith("09"): # Ecuador con 0
-                telf_limpio = "593" + telf_limpio[1:]
-                
-            return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf_limpio, foto
-            
+    mejor_chofer, menor_distancia = None, float('inf')
+    for index, chofer in libres.iterrows():
+        nombre_completo = f"{chofer['Nombre']} {chofer['Apellido']}"
+        ubi = df_ubicaciones[df_ubicaciones['Conductor'] == nombre_completo]
+        if not ubi.empty:
+            lat_chof, lon_chof = float(ubi.iloc[-1]['Latitud']), float(ubi.iloc[-1]['Longitud'])
+            dist = calcular_distancia(lat_cliente, lon_cliente, lat_chof, lon_chof)
+            if dist < menor_distancia:
+                menor_distancia, mejor_chofer = dist, chofer
+    
+    if mejor_chofer is not None:
+        telf = ''.join(filter(str.isdigit, str(mejor_chofer['Telefono'])))
+        if (len(telf) == 9 or len(telf) == 10) and telf.startswith("0"): telf = "593" + telf[1:]
+        foto = str(mejor_chofer['FOTO_PENDIENTE']) if 'FOTO_PENDIENTE' in mejor_chofer else ""
+        return f"{mejor_chofer['Nombre']} {mejor_chofer['Apellido']}", telf, foto
     return None, None, None
 
-# --- INTERFAZ CLIENTE ---
-st.markdown('<div class="main-title">🚖 TAXI SEGURO</div>', unsafe_allow_html=True)
-st.markdown('<div class="sub-title">🌎 SERVICIO GLOBAL</div>', unsafe_allow_html=True)
-st.sidebar.info("👋 **Conductores:**\nUsen el menú de navegación para ir al Portal de Socios.")
+# --- 📱 INTERFAZ PRINCIPAL ---
+
+# Selector de Idioma (Nivel 2)
+st.sidebar.markdown("### 🌐 Language / Idioma")
+idioma_sel = st.sidebar.selectbox("Select Language", list(TRADUCCIONES.keys()))
+t = TRADUCCIONES[idioma_sel]
+
+st.markdown(f'<div class="main-title">{t["bienvenida"]}</div>', unsafe_allow_html=True)
+st.markdown(f'<div class="sub-title">{t["subtitulo"]}</div>', unsafe_allow_html=True)
+st.sidebar.info("👋 Conductores:\nPortal de Socios en el menú.")
+
 st.divider()
 
-st.markdown('<div class="step-header">📡 PASO 1: ACTIVAR UBICACIÓN</div>', unsafe_allow_html=True)
+# Paso 1: GPS
+st.markdown(f'<div class="step-header">{t["paso1"]}</div>', unsafe_allow_html=True)
 loc = get_geolocation()
-lat_actual, lon_actual = LAT_BASE, LON_BASE
-if loc:
-    lat_actual = loc['coords']['latitude']
-    lon_actual = loc['coords']['longitude']
-    mapa = f"https://www.google.com/maps?q={lat_actual},{lon_actual}"
-    st.success("✅ GPS ACTIVADO")
-else:
-    mapa = "No detectado"
-    st.info("📍 Por favor activa tu GPS.")
+lat_actual, lon_actual = (loc['coords']['latitude'], loc['coords']['longitude']) if loc else (LAT_BASE, LON_BASE)
 
-st.markdown('<div class="step-header">📝 PASO 2: DATOS DEL VIAJE</div>', unsafe_allow_html=True)
+if loc: st.success(t["gps_ok"])
+else: st.info(t["gps_off"])
+
+# Paso 2: Formulario
+st.markdown(f'<div class="step-header">{t["paso2"]}</div>', unsafe_allow_html=True)
 with st.form("form_pedido"):
-    nombre_cli = st.text_input("Tu Nombre:")
-    
-    # === SELECCIÓN DE PAÍS COMPLETA ===
-    st.write("Tu Número de WhatsApp:")
-    col_pref, col_num = st.columns([1.5, 3])
-    
-    # LISTA IDÉNTICA AL REGISTRO DE CONDUCTORES
-    prefijo_pais = col_pref.selectbox("País", [
-        "+593 (Ecuador)", 
-        "+57 (Colombia)", 
-        "+51 (Perú)", 
-        "+52 (México)", 
-        "+34 (España)", 
-        "+1 (Estados Unidos)", 
-        "+54 (Argentina)", 
-        "+55 (Brasil)", 
-        "+56 (Chile)", 
-        "Otro"
-    ])
-    
-    celular_cli = col_num.text_input("Número (Sin el código de país)")
-    # ==================================
-    
-    ref_cli = st.text_input("Referencia / Dirección:")
-    tipo_veh = st.selectbox("¿Qué necesitas?", ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
-    enviar = st.form_submit_button("🚖 SOLICITAR UNIDAD")
+    nombre_cli = st.text_input(t["nombre"])
+    prefijo_pais = st.selectbox("País / Country", ["+593 (Ecuador)", "+57 (Colombia)", "+51 (Perú)", "+52 (México)", "+34 (España)", "+1 (USA)", "Otro"])
+    celular_cli = st.text_input("WhatsApp (No code)")
+    ref_cli = st.text_input("Referencia:")
+    tipo_veh = st.selectbox(t["pregunta"], ["Taxi 🚖", "Camioneta 🛻", "Ejecutivo 🚔"])
+    enviar = st.form_submit_button(t["boton"])
 
 if enviar:
     if not nombre_cli or not ref_cli or not celular_cli:
-        st.error("⚠️ Nombre, Teléfono y Referencia son obligatorios.")
+        st.error(t["error"])
     else:
-        # FORMATEAR EL NÚMERO DEL CLIENTE PARA WHATSAPP
         tel_final_cli = formatear_internacional(prefijo_pais, celular_cli)
-            
-        with st.spinner("🔄 Buscando la unidad más cercana..."):
+        with st.spinner(t["buscando"]):
             chof, t_chof, foto_chof = obtener_chofer_mas_cercano(lat_actual, lon_actual)
             id_v = f"TX-{random.randint(1000, 9999)}"
-            tipo_solo_texto = tipo_veh.split(" ")[0]
             
             enviar_datos_a_sheets({
-                "accion": "registrar_pedido", 
-                "cliente": nombre_cli, 
-                "telefono_cli": tel_final_cli, 
-                "referencia": ref_cli, 
-                "conductor": chof if chof else "OCUPADOS", 
-                "telefono_chof": t_chof if t_chof else "N/A", 
-                "mapa": mapa, 
-                "id_viaje": id_v, 
-                "tipo": tipo_solo_texto
+                "accion": "registrar_pedido", "cliente": nombre_cli, "telefono_cli": tel_final_cli, 
+                "referencia": ref_cli, "conductor": chof if chof else "OCUPADOS", 
+                "mapa": f"https://www.google.com/maps?q={lat_actual},{lon_actual}", "id_viaje": id_v
             })
             
             if chof:
                 st.balloons()
-                st.markdown(f'<div style="text-align:center; margin-bottom:10px;"><span class="id-badge">🆔 ID: {id_v}</span></div>', unsafe_allow_html=True)
-                
-                # FOTO
+                st.success(f"{t['encontrado']} **{chof}**")
                 if foto_chof and "http" in foto_chof:
-                    foto_visible = foto_chof.replace("uc?export=view&", "thumbnail?sz=w400&")
-                    st.markdown(f"""
-                    <div style="display: flex; justify-content: center; margin-bottom: 15px;">
-                        <img src="{foto_visible}" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover; border: 4px solid #25D366; box-shadow: 0 4px 8px rgba(0,0,0,0.2);">
-                    </div>""", unsafe_allow_html=True)
+                    st.markdown(f'<div style="text-align:center;"><img src="{foto_chof}" style="width:120px;border-radius:50%;border:4px solid #25D366;"></div>', unsafe_allow_html=True)
                 
-                st.success(f"✅ ¡Unidad Encontrada! Conductor: **{chof}**")
-                
-                # BOTÓN WHATSAPP BLINDADO E INTERNACIONAL
-                if t_chof and len(t_chof) > 5:
-                    msg = f"🚖 *PEDIDO DE {tipo_solo_texto.upper()}*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n📱 Cel: {tel_final_cli}\n📍 Ref: {ref_cli}\n🗺️ Mapa: {mapa}"
-                    link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
-                    
-                    st.markdown(f"""
-                    <a href="{link_wa}" target="_blank" style="background-color: #25D366; color: white; padding: 15px; border-radius: 10px; text-align: center; display: block; text-decoration: none; font-weight: bold; font-size: 20px; margin-top: 10px; box-shadow: 0px 4px 6px rgba(0,0,0,0.1);">
-                        📲 ENVIAR UBICACIÓN
-                    </a>
-                    """, unsafe_allow_html=True)
-                else: st.warning("⚠️ El conductor no tiene WhatsApp registrado correctamente.")
-            else: st.error("❌ No hay conductores 'LIBRES' cerca de ti en este momento.")
+                msg = f"🚖 *PEDIDO*\n🆔 *ID:* {id_v}\n👤 Cliente: {nombre_cli}\n🗺️ Mapa: https://www.google.com/maps?q={lat_actual},{lon_actual}"
+                link_wa = f"https://api.whatsapp.com/send?phone={t_chof}&text={urllib.parse.quote(msg)}"
+                st.markdown(f'<a href="{link_wa}" target="_blank" style="background-color:#25D366;color:white;padding:15px;border-radius:10px;text-align:center;display:block;text-decoration:none;font-weight:bold;font-size:20px;">{t["whatsapp"]}</a>', unsafe_allow_html=True)
+            else: st.error(t["no_libre"])
 
-st.markdown("---")
-st.markdown(f"""
-    <div class="footer">
-        <p>¿Necesitas ayuda o quieres reportar algo?</p>
-        <p>📧 Contacto: <a href="mailto:{EMAIL_CONTACTO}" target="_self">{EMAIL_CONTACTO}</a></p>
-        <p>© 2025 Taxi Seguro Global</p>
-    </div>
-""", unsafe_allow_html=True)
+# Footer
+st.markdown(f"""<div class="footer"><p>{t['footer_ayuda']}</p><p>📧 <a href="mailto:{EMAIL_CONTACTO}">{EMAIL_CONTACTO}</a></p><p>© 2025 Taxi Seguro</p></div>""", unsafe_allow_html=True)
